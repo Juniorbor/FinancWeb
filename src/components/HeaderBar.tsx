@@ -11,6 +11,7 @@ import {
   Menu
 } from 'lucide-react';
 import type { Paciente, Consulta } from '../types';
+import logoImg from '../assets/logo.jpg';
 
 interface HeaderBarProps {
   darkMode: boolean;
@@ -71,7 +72,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           : 'bg-white/90 border-slate-200/80 text-slate-800'
       }`}
     >
-      {/* Botão Menu Hamburger para Celulares (Android & iOS) + Busca Global */}
+      {/* Botão Menu Hamburger para Celulares (Android & iOS) + Logo + Busca Global */}
       <div className="flex items-center gap-2 flex-1 max-w-md">
         <button
           onClick={onToggleMobileMenu}
@@ -84,6 +85,23 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         >
           <Menu className="w-5 h-5" />
         </button>
+
+        {/* Logo Oficial OdontoWeb no Header */}
+        <div
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center gap-2 cursor-pointer shrink-0"
+        >
+          <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-teal-500/50 shadow-md flex items-center justify-center bg-white">
+            <img
+              src={logoImg}
+              alt="OdontoWeb Logo"
+              className="w-full h-full object-cover scale-[1.35]"
+            />
+          </div>
+          <span className="font-extrabold text-base tracking-tight hidden sm:inline-block">
+            Odonto<span className="text-teal-400">Web</span>
+          </span>
+        </div>
 
         {/* Campo de Busca Inteligente */}
         <div className="relative flex-1">
