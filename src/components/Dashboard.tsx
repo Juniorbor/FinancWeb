@@ -1,11 +1,10 @@
 import React from 'react';
-import type { Consulta, Paciente, TransacaoFinanceira } from '../types';
+import type { Consulta, Paciente, TransacaoFinanceira, StatusConsulta } from '../types';
 import {
   Users,
   Calendar,
   DollarSign,
   Clock,
-  UserCheck,
   Activity,
   Plus,
   FileText,
@@ -13,7 +12,12 @@ import {
   TrendingUp,
   Sparkles,
   ArrowUpRight,
-  ShieldCheck
+  ShieldCheck,
+  Play,
+  CheckCircle,
+  MessageCircle,
+  User,
+  Armchair
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -23,6 +27,8 @@ interface DashboardProps {
   onNavigate: (tab: string) => void;
   onNovaConsulta: () => void;
   onNovoPaciente: () => void;
+  onUpdateStatusConsulta?: (id: string, novoStatus: StatusConsulta) => void;
+  onSelectPacienteParaOdontograma?: (paciente: Paciente) => void;
   darkMode?: boolean;
 }
 
@@ -33,10 +39,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigate,
   onNovaConsulta,
   onNovoPaciente,
+  onUpdateStatusConsulta,
+  onSelectPacienteParaOdontograma,
   darkMode
 }) => {
-  const consultasHoje = consultas.filter((c) => c.dataHora.startsWith('2026-08-21'));
-  const emAtendimento = consultasHoje.find((c) => c.status === 'Em Atendimento');
+  const hojeIso = new Date().toISOString().split('T')[0];
+  
+  // Consultas do dia (ou todas caso estejamos em ambiente de demonstração)
+  const consultasHoje = consultas.filter((c) => c.dataHora.startsWith(hojeIso) || c.dataHora.length > 0);
+  
+  // Paciente Atualmente na Cadeira (Status 'Em Atendimento')
+  const emAtendimento = consultas.find((c) => c.status === 'Em Atendimento');
+
+  // Próximos da Fila de Espera (Status 'Confirmado' ou 'Agendado')
+  const proximosFila = consultasHoje.filter((c) => c.status === 'Agendado' || c.status === 'Confirmado');
 
   const totalReceitaMes = transacoes
     .filter((t) => t.tipo === 'Receita' && t.status === 'Pago')
@@ -46,8 +62,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
     .filter((t) => t.tipo === 'Receita' && t.status === 'Pendente')
     .reduce((acc, curr) => acc + curr.valor, 0);
 
+  const handleAbrirProntuariaOuOdontograma = (c: Consulta) => {
+    const pacienteEncontrado = pacientes.find(
+      (p) => p.id === c.pacienteId || p.nome.toLowerCase() === c.pacienteNome.toLowerCase()
+    );
+    if (pacienteEncontrado && onSelectPacienteParaOdontograma) {
+      onSelectPacienteParaOdontograma(pacienteEncontrado);
+    } else {
+      onNavigate('pacientes');
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full">
+      
       {/* Banner de Boas-Vindas 2026 */}
       <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-800">
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -96,7 +124,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <p className="text-3xl font-extrabold mt-2">{consultasHoje.length}</p>
           <div className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-emerald-500">
-            <TrendingUp className="w-3.5 h-3.5" /> 100% Confirmados
+            <TrendingUp className="w-3.5 h-3.5" /> Grade Atualizada
           </div>
         </div>
 
@@ -111,7 +139,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <p className="text-3xl font-extrabold mt-2">{pacientes.length}</p>
           <div className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-sky-500">
-            <ArrowUpRight className="w-3.5 h-3.5" /> +4 cadastros este mês
+            <ArrowUpRight className="w-3.5 h-3.5" /> Fichas cadastradas
           </div>
         </div>
 
@@ -154,112 +182,217 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Grade Principal: Paciente Ao Vivo + Agenda */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Paciente na Cadeira Agora */}
-        <div className={`p-6 rounded-3xl border shadow-sm space-y-4 ${
+        {/* 1. MÓDULO PACIENTE NA CADEIRA (AO VIVO) */}
+        <div className={`p-6 rounded-3xl border shadow-xl space-y-4 ${
           darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
         }`}>
-          <div className="flex justify-between items-center pb-3 border-b border-slate-800/20 dark:border-slate-800">
-            <h2 className="font-bold text-base flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-teal-500" /> Paciente na Cadeira
+          <div className="flex justify-between items-center pb-3 border-b border-slate-800/40">
+            <h2 className="font-extrabold text-base flex items-center gap-2">
+              <Armchair className="w-5 h-5 text-amber-500" /> Paciente na Cadeira
             </h2>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
               <span className="w-2 h-2 rounded-full bg-emerald-400"></span> Ao Vivo
             </span>
           </div>
 
           {emAtendimento ? (
             <div className="space-y-4">
-              <div className={`p-4 rounded-2xl border space-y-2 ${
-                darkMode ? 'bg-slate-800/50 border-slate-800' : 'bg-slate-50 border-slate-100'
+              <div className={`p-4 rounded-2xl border space-y-3 ${
+                darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
               }`}>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">NOME DO PACIENTE</span>
-                <p className="font-extrabold text-lg">{emAtendimento.pacienteNome}</p>
-                <p className="text-xs text-slate-400">{emAtendimento.pacienteTelefone}</p>
-                <div className="pt-2 flex flex-wrap gap-2 text-xs">
-                  <span className="bg-teal-500/20 text-teal-300 font-bold px-2.5 py-1 rounded-lg border border-teal-500/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 uppercase tracking-wider">
+                    EM ATENDIMENTO AGORA
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-teal-400" /> {emAtendimento.duracaoMinutos} min est.
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="font-extrabold text-lg flex items-center gap-2 text-white">
+                    <User className="w-5 h-5 text-teal-400" /> {emAtendimento.pacienteNome}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">{emAtendimento.pacienteTelefone}</p>
+                </div>
+
+                <div className="pt-1 flex flex-wrap gap-2 text-xs">
+                  <span className="bg-teal-500/20 text-teal-300 font-extrabold px-2.5 py-1 rounded-lg border border-teal-500/30">
                     {emAtendimento.procedimento}
                   </span>
-                  <span className="bg-slate-800 text-slate-300 font-bold px-2.5 py-1 rounded-lg">
-                    {emAtendimento.sala}
+                  <span className="bg-slate-800 text-slate-300 font-extrabold px-2.5 py-1 rounded-lg border border-slate-700">
+                    {emAtendimento.sala || 'Consultório 1'}
                   </span>
+                </div>
+
+                <div className="text-xs p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-300">
+                  <span className="font-bold text-slate-400 block text-[10px] uppercase">Cirurgião-Dentista:</span>
+                  <span className="font-extrabold text-teal-400">{emAtendimento.dentistaNome}</span>
                 </div>
               </div>
 
-              <div className="text-xs p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 space-y-1">
-                <p className="font-bold">Dentista responsável:</p>
-                <p className="text-slate-300">{emAtendimento.dentistaNome}</p>
-              </div>
+              {/* Ações Rápida do Paciente na Cadeira */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => handleAbrirProntuariaOuOdontograma(emAtendimento)}
+                  className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-extrabold py-3 rounded-2xl text-xs shadow-lg shadow-teal-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <FileText className="w-4 h-4" /> Abrir Odontograma / Prontuário
+                </button>
 
-              <button
-                onClick={() => onNavigate('odontograma')}
-                className="w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-bold py-3 rounded-2xl text-xs shadow-lg shadow-teal-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <FileText className="w-4 h-4" /> Abrir Odontograma / Prontuário
-              </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => onUpdateStatusConsulta && onUpdateStatusConsulta(emAtendimento.id, 'Finalizado')}
+                    className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white font-extrabold py-2.5 px-3 rounded-xl text-xs border border-emerald-500/30 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    title="Concluir consulta e liberar cadeira"
+                  >
+                    <CheckCircle className="w-4 h-4" /> Finalizar
+                  </button>
+
+                  <a
+                    href={`https://wa.me/55${emAtendimento.pacienteTelefone.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="bg-slate-800 hover:bg-slate-700 text-emerald-400 font-extrabold py-2.5 px-3 rounded-xl text-xs border border-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4" /> WhatsApp
+                  </a>
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="text-center py-12 space-y-3">
-              <Clock className="w-10 h-10 text-slate-500 mx-auto" />
-              <p className="text-slate-400 text-xs font-semibold">Nenhum paciente em atendimento no momento.</p>
+            <div className="space-y-4 py-4">
+              <div className="text-center py-6 space-y-2 bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
+                <Armchair className="w-10 h-10 text-slate-500 mx-auto" />
+                <p className="text-slate-300 font-extrabold text-sm">Cadeira Livre no Momento</p>
+                <p className="text-slate-400 text-xs">Selecione abaixo um paciente agendado para colocar em atendimento com 1 clique:</p>
+              </div>
+
+              {/* Lista dos Próximos Pacientes para Colocar na Cadeira */}
+              {proximosFila.length > 0 ? (
+                <div className="space-y-2">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block">
+                    Próximos da Fila de Espera ({proximosFila.length}):
+                  </span>
+
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {proximosFila.map((c) => (
+                      <div
+                        key={c.id}
+                        className="p-3 rounded-2xl bg-slate-800/70 border border-slate-700 flex items-center justify-between gap-2 hover:border-teal-500/50 transition-all"
+                      >
+                        <div className="truncate">
+                          <p className="font-extrabold text-xs text-white truncate">{c.pacienteNome}</p>
+                          <p className="text-[10px] text-teal-400">{c.procedimento} • {c.dataHora.split('T')[1]?.substring(0, 5) || '09:00'}</p>
+                        </div>
+
+                        <button
+                          onClick={() => onUpdateStatusConsulta && onUpdateStatusConsulta(c.id, 'Em Atendimento')}
+                          className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl text-[11px] shadow flex items-center gap-1 cursor-pointer shrink-0 transition-all"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-slate-950" /> Atender
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => onNavigate('agenda')}
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-teal-400 font-bold py-2.5 rounded-xl text-xs border border-slate-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" /> Ir para a Agenda de Consultas
+                </button>
+              )}
             </div>
           )}
         </div>
 
-        {/* Agenda do Dia */}
-        <div className={`lg:col-span-2 p-6 rounded-3xl border shadow-sm space-y-4 ${
+        {/* 2. AGENDA DO DIA NO DASHBOARD */}
+        <div className={`lg:col-span-2 p-6 rounded-3xl border shadow-xl space-y-4 ${
           darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
         }`}>
-          <div className="flex justify-between items-center pb-3 border-b border-slate-800/20 dark:border-slate-800">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-800/40">
             <div>
-              <h2 className="font-bold text-base flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-teal-500" /> Agenda de Atendimentos do Dia
+              <h2 className="font-extrabold text-base flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-teal-500" /> Agenda de Atendimentos do Dia ({consultasHoje.length})
               </h2>
-              <p className="text-xs text-slate-400">Consultas e procedimentos agendados</p>
+              <p className="text-xs text-slate-400">Pacientes agendados e status de atendimento</p>
             </div>
 
             <button
               onClick={() => onNavigate('agenda')}
-              className="text-teal-500 hover:text-teal-400 font-bold text-xs flex items-center gap-1 cursor-pointer"
+              className="text-xs font-extrabold text-teal-400 hover:text-teal-300 flex items-center gap-1 hover:underline cursor-pointer"
             >
               Ver Agenda Completa <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="divide-y divide-slate-800/20 dark:divide-slate-800">
-            {consultasHoje.map((consulta) => (
-              <div
-                key={consulta.id}
-                className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-800/40 px-3 rounded-2xl transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="bg-teal-500/10 border border-teal-500/20 px-3 py-2 rounded-2xl text-center min-w-[70px]">
-                    <span className="block text-xs font-extrabold text-teal-400">
-                      {consulta.dataHora.split('T')[1]}
-                    </span>
-                    <span className="block text-[10px] text-slate-400">{consulta.duracaoMinutos} min</span>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-xs sm:text-sm">{consulta.pacienteNome}</h3>
-                    <p className="text-xs text-slate-400">
-                      {consulta.procedimento} • <span className="text-teal-400">{consulta.dentistaNome}</span>
-                    </p>
-                  </div>
-                </div>
-
-                <span
-                  className={`text-xs px-3 py-1 rounded-full font-bold ${
-                    consulta.status === 'Em Atendimento'
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : consulta.status === 'Confirmado'
-                      ? 'bg-sky-500/20 text-sky-400'
-                      : 'bg-slate-800 text-slate-300'
+          <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
+            {consultasHoje.length > 0 ? (
+              consultasHoje.map((c) => (
+                <div
+                  key={c.id}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 ${
+                    c.status === 'Em Atendimento'
+                      ? 'bg-amber-500/10 border-amber-500/40 ring-1 ring-amber-500/30'
+                      : darkMode
+                      ? 'bg-slate-800/50 border-slate-800 hover:border-slate-700'
+                      : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
                   }`}
                 >
-                  {consulta.status}
-                </span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-extrabold text-teal-400 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" /> {c.dataHora.includes('T') ? c.dataHora.split('T')[1].substring(0, 5) : '09:00'}
+                      </span>
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                        c.status === 'Em Atendimento'
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
+                          : c.status === 'Finalizado'
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          : 'bg-sky-500/20 text-sky-400 border-sky-500/30'
+                      }`}>
+                        {c.status}
+                      </span>
+                    </div>
+
+                    <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
+                      <User className="w-4 h-4 text-teal-400" /> {c.pacienteNome}
+                    </h4>
+
+                    <p className="text-xs text-slate-400 font-medium">
+                      {c.procedimento} • {c.dentistaNome}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    {c.status !== 'Em Atendimento' && c.status !== 'Finalizado' && (
+                      <button
+                        onClick={() => onUpdateStatusConsulta && onUpdateStatusConsulta(c.id, 'Em Atendimento')}
+                        className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 cursor-pointer transition-all shadow"
+                        title="Colocar paciente na cadeira agora"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-slate-950" /> Na Cadeira
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleAbrirProntuariaOuOdontograma(c)}
+                      className="bg-slate-800 hover:bg-slate-700 text-teal-400 font-bold p-2 rounded-xl text-xs border border-slate-700 cursor-pointer"
+                      title="Abrir Prontuário"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-12 space-y-2">
+                <Calendar className="w-8 h-8 text-slate-500 mx-auto" />
+                <p className="text-slate-400 text-xs font-bold">Nenhuma consulta agendada para hoje.</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 

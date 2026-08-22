@@ -356,6 +356,8 @@ export function App() {
               onNavigate={setActiveTab}
               onNovaConsulta={() => setActiveTab('agenda')}
               onNovoPaciente={() => setActiveTab('pacientes')}
+              onUpdateStatusConsulta={handleUpdateStatusConsulta}
+              onSelectPacienteParaOdontograma={handleAbrirOdontogramaPaciente}
               darkMode={darkMode}
             />
           )}
