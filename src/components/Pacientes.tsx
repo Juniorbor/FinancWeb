@@ -433,6 +433,16 @@ export const Pacientes: React.FC<PacientesProps> = ({
                           className="hidden"
                         />
                       </label>
+
+                      {fotoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setFotoUrl('')}
+                          className="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 px-3 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" /> Excluir Imagem
+                        </button>
+                      )}
                     </div>
                     <p className="text-[10px] text-slate-400">Tire uma foto ao vivo usando a câmera do celular/pc ou envie um arquivo. A foto será anexada ao cadastro e salva em 'Fotografias'.</p>
                   </div>

@@ -352,17 +352,27 @@ export const FotografiasGaleria: React.FC<FotografiasGaleriaProps> = ({
                   Fotografia da Câmera / Arquivo ({isFormatoRetrato(categoria) ? 'Formato Retrato Vertical 3:4' : 'Formato Padrão'})
                 </label>
                 {imagemUrl ? (
-                  <div className={`relative rounded-2xl overflow-hidden border-2 border-teal-500 max-w-xs mx-auto shadow-xl ${
-                    isFormatoRetrato(categoria) ? 'aspect-[3/4] max-h-80' : 'aspect-video'
-                  }`}>
-                    <img src={imagemUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <div className="space-y-2 max-w-xs mx-auto text-center">
+                    <div className={`relative rounded-2xl overflow-hidden border-2 border-teal-500 shadow-xl ${
+                      isFormatoRetrato(categoria) ? 'aspect-[3/4] max-h-80' : 'aspect-video'
+                    }`}>
+                      <img src={imagemUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setImagemUrl('')}
+                        className="absolute top-2 right-2 bg-rose-600 text-white p-1 rounded-full shadow cursor-pointer"
+                        title="Remover Imagem"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => setImagemUrl('')}
-                      className="absolute top-2 right-2 bg-rose-600 text-white p-1 rounded-full shadow cursor-pointer"
-                      title="Trocar Imagem"
+                      className="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 px-3 py-1.5 rounded-xl text-xs font-extrabold inline-flex items-center gap-1.5 cursor-pointer transition-all"
                     >
-                      <X className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir Imagem
                     </button>
                   </div>
                 ) : (
