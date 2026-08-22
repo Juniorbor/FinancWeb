@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TransacaoPessoal } from '../types';
-import { pushToCloud, pullFromCloud } from '../services/cloudSync';
+import { pushToCloud, pullFromCloud, subscribeLocalBroadcast } from '../services/cloudSync';
 import {
   DollarSign,
   ArrowUpRight,
@@ -98,14 +98,21 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
       setSincronizando(false);
     }, true);
 
-    // 2. Polling contínuo a cada 2.5 segundos
+    // 2. Escuta alterações locais de abas simultâneas via BroadcastChannel
+    const unsubscribeBroadcast = subscribeLocalBroadcast((payload) => {
+      if (payload.financeiro) {
+        setTransacoes(payload.financeiro);
+      }
+    });
+
+    // 3. Polling contínuo a cada 2 segundos
     const interval = setInterval(() => {
       pullFromCloud((payload) => {
         if (payload.financeiro) {
           setTransacoes(payload.financeiro);
         }
       });
-    }, 2500);
+    }, 2000);
 
     const handleFocus = () => {
       pullFromCloud((payload) => {
@@ -115,6 +122,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
 
     window.addEventListener('focus', handleFocus);
     return () => {
+      unsubscribeBroadcast();
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };

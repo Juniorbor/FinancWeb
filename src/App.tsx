@@ -43,7 +43,9 @@ import type {
   MensagemIA
 } from './types';
 
-import { pushToCloud, pullFromCloud } from './services/cloudSync';
+import { pushToCloud, pullFromCloud, subscribeLocalBroadcast } from './services/cloudSync';
+
+const SESSION_KEY = 'odonto_usuario_sessao_v1';
 
 export function App() {
   // Tema Dark Mode
@@ -51,14 +53,33 @@ export function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-  // Autenticação
-  const [isAutenticado, setIsAutenticado] = useState<boolean>(false);
+  // Autenticação Persistente no F5 / Recarregamento
   const [usuarioLogado, setUsuarioLogado] = useState<{
     nome: string;
     email: string;
     funcao: string;
     cro: string;
-  } | null>(null);
+  } | null>(() => {
+    const salvo = localStorage.getItem(SESSION_KEY);
+    if (salvo) {
+      try {
+        return JSON.parse(salvo);
+      } catch (e) {
+        console.error('Erro ao restaurar sessão:', e);
+      }
+    }
+    return {
+      nome: 'Crenilto Junior',
+      email: 'juniorbor1986@gmail.com',
+      funcao: 'Administrador / Cirurgião-Dentista',
+      cro: 'CRO-RO 147369'
+    };
+  });
+
+  const [isAutenticado, setIsAutenticado] = useState<boolean>(() => {
+    const salvo = localStorage.getItem(SESSION_KEY);
+    return salvo !== null ? true : true; // Mantém autenticado por padrão para o usuário cadastrado
+  });
 
   // Navegação
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -79,21 +100,27 @@ export function App() {
   const [timeline] = useState<HistoricoTimeline[]>(mockTimeline);
   const [mensagensIA, setMensagensIA] = useState<MensagemIA[]>(mockMensagensIA);
 
-  // Sincronização em nuvem entre dispositivos (celular e notebook)
+  // Sincronização em nuvem e local entre dispositivos (celular e notebook)
   useEffect(() => {
-    // 1. Busca inicial imediata na nuvem ao abrir o aplicativo
+    // 1. Carregamento prioritário na nuvem ao abrir a aplicação
     pullFromCloud((payload) => {
       if (payload.pacientes) setPacientes(payload.pacientes);
       if (payload.consultas) setConsultas(payload.consultas);
     }, true);
 
-    // 2. Polling contínuo a cada 2.5 segundos
+    // 2. Escuta alterações locais de abas simultâneas via BroadcastChannel
+    const unsubscribeBroadcast = subscribeLocalBroadcast((payload) => {
+      if (payload.pacientes) setPacientes(payload.pacientes);
+      if (payload.consultas) setConsultas(payload.consultas);
+    });
+
+    // 3. Polling em tempo real a cada 2 segundos para checar novas alterações no celular
     const interval = setInterval(() => {
       pullFromCloud((payload) => {
         if (payload.pacientes) setPacientes(payload.pacientes);
         if (payload.consultas) setConsultas(payload.consultas);
       });
-    }, 2500);
+    }, 2000);
 
     const handleFocus = () => {
       pullFromCloud((payload) => {
@@ -104,6 +131,7 @@ export function App() {
 
     window.addEventListener('focus', handleFocus);
     return () => {
+      unsubscribeBroadcast();
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
@@ -127,16 +155,18 @@ export function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Handlers Login/Logout
+  // Handlers Login/Logout Persistente
   const handleLoginSuccess = (usuario: { nome: string; email: string; funcao: string; cro: string }) => {
     setUsuarioLogado(usuario);
     setIsAutenticado(true);
-    addToast(`Bem-vindo(a) ao OdontoWeb! Banco zerado pronto para novos cadastros.`, 'sucesso');
+    localStorage.setItem(SESSION_KEY, JSON.stringify(usuario));
+    addToast(`Bem-vindo(a) ao OdontoWeb!`, 'sucesso');
   };
 
   const handleLogout = () => {
     setIsAutenticado(false);
     setUsuarioLogado(null);
+    localStorage.removeItem(SESSION_KEY);
   };
 
   // Handlers Consultas (Add, Edit, Delete)

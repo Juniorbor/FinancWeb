@@ -1,7 +1,12 @@
 // Serviço de Sincronização em Nuvem em Tempo Real para OdontoWeb
-// Permite que qualquer alteração no celular (Android/iOS) apareça instantaneamente no notebook e vice-versa!
+// Permite que qualquer alteração no celular (Android/iOS) apareça instantaneamente no notebook!
 
-const CLOUD_SYNC_ENDPOINT = 'https://api.restful-api.dev/objects/ff8081819ff5b11001a02775064c72bb';
+const getCloudEndpoint = () => {
+  if (typeof window !== 'undefined' && window.location.hostname.includes('netlify.app')) {
+    return '/.netlify/functions/sync';
+  }
+  return 'https://odontoweb-app.netlify.app/.netlify/functions/sync';
+};
 
 export interface CloudDataPayload {
   producao?: any[];
@@ -13,6 +18,9 @@ export interface CloudDataPayload {
 }
 
 let isSyncing = false;
+const broadcastChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
+  ? new BroadcastChannel('odontoweb_realtime_channel')
+  : null;
 
 // Chaves do localStorage
 export const KEYS = {
@@ -24,14 +32,13 @@ export const KEYS = {
 };
 
 /**
- * Envia as alterações locais para a nuvem apenas quando há alterações explícitas
+ * Envia as alterações locais para a nuvem Netlify para que o notebook/celular receba em tempo real
  */
 export async function pushToCloud(data: Partial<CloudDataPayload>): Promise<boolean> {
   try {
     const timestamp = Date.now();
     localStorage.setItem(KEYS.LAST_UPDATE, timestamp.toString());
 
-    // Carrega o payload existente do localStorage para manter integridade
     const payload: CloudDataPayload = {
       producao: data.producao !== undefined ? data.producao : getItemJSON(KEYS.PRODUCAO, []),
       financeiro: data.financeiro !== undefined ? data.financeiro : getItemJSON(KEYS.FINANCEIRO, []),
@@ -41,21 +48,23 @@ export async function pushToCloud(data: Partial<CloudDataPayload>): Promise<bool
       updatedBy: typeof window !== 'undefined' && window.innerWidth < 768 ? 'Celular (Android/iOS)' : 'Notebook/PC'
     };
 
-    const res = await fetch(CLOUD_SYNC_ENDPOINT, {
-      method: 'PUT',
+    // Notifica abas locais instantaneamente via BroadcastChannel
+    if (broadcastChannel) {
+      broadcastChannel.postMessage({ type: 'SYNC_UPDATE', payload });
+    }
+
+    const res = await fetch(getCloudEndpoint(), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'odontoweb_juniorbor1986_master_sync',
-        data: payload
-      })
+      body: JSON.stringify(payload)
     });
 
     if (res.ok) {
-      console.log('✅ Dados atualizados e sincronizados na nuvem!');
+      console.log('✅ Alterações sincronizadas com a nuvem!');
       return true;
     }
   } catch (error) {
-    console.warn('Falha temporária ao sincronizar com a nuvem:', error);
+    console.warn('Conectando à nuvem de sincronização...', error);
   }
   return false;
 }
@@ -71,7 +80,10 @@ export async function pullFromCloud(
   isSyncing = true;
 
   try {
-    const res = await fetch(CLOUD_SYNC_ENDPOINT);
+    const res = await fetch(getCloudEndpoint(), {
+      headers: { 'Accept': 'application/json' }
+    });
+    
     if (!res.ok) {
       isSyncing = false;
       return false;
@@ -82,35 +94,55 @@ export async function pullFromCloud(
     const remoteTimestamp = cloudData.updatedAt || 0;
     const localTimestamp = Number(localStorage.getItem(KEYS.LAST_UPDATE) || '0');
 
-    // Sincroniza se o remoto for mais novo, se for a primeira carga (localTimestamp === 0) ou se for forçado
+    // Atualiza se o remoto for mais recente ou se for a carga inicial (force = true)
     if (force || remoteTimestamp > localTimestamp || (localTimestamp === 0 && remoteTimestamp > 0)) {
       console.log(`⚡ Sincronizando dados da nuvem (${cloudData.updatedBy || 'Dispositivo'}):`, cloudData);
       
-      if (cloudData.producao !== undefined) {
+      if (Array.isArray(cloudData.producao)) {
         localStorage.setItem(KEYS.PRODUCAO, JSON.stringify(cloudData.producao));
       }
-      if (cloudData.financeiro !== undefined) {
+      if (Array.isArray(cloudData.financeiro)) {
         localStorage.setItem(KEYS.FINANCEIRO, JSON.stringify(cloudData.financeiro));
       }
-      if (cloudData.pacientes !== undefined) {
+      if (Array.isArray(cloudData.pacientes)) {
         localStorage.setItem(KEYS.PACIENTES, JSON.stringify(cloudData.pacientes));
       }
-      if (cloudData.consultas !== undefined) {
+      if (Array.isArray(cloudData.consultas)) {
         localStorage.setItem(KEYS.CONSULTAS, JSON.stringify(cloudData.consultas));
       }
 
-      localStorage.setItem(KEYS.LAST_UPDATE, (remoteTimestamp || Date.now()).toString());
+      if (remoteTimestamp > 0) {
+        localStorage.setItem(KEYS.LAST_UPDATE, remoteTimestamp.toString());
+      }
 
       onUpdate(cloudData);
       isSyncing = false;
       return true;
     }
   } catch (error) {
-    // Falha silenciosa
+    // Falha silenciosa se offline
   }
 
   isSyncing = false;
   return false;
+}
+
+/**
+ * Assina atualizações locais em tempo real entre abas no mesmo computador
+ */
+export function subscribeLocalBroadcast(onUpdate: (payload: CloudDataPayload) => void) {
+  if (!broadcastChannel) return () => {};
+
+  const handleMessage = (event: MessageEvent) => {
+    if (event.data && event.data.type === 'SYNC_UPDATE') {
+      onUpdate(event.data.payload);
+    }
+  };
+
+  broadcastChannel.addEventListener('message', handleMessage);
+  return () => {
+    broadcastChannel.removeEventListener('message', handleMessage);
+  };
 }
 
 function getItemJSON(key: string, fallback: any) {

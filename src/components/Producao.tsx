@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ItemProducaoTomo } from '../types';
-import { pushToCloud, pullFromCloud } from '../services/cloudSync';
+import { pushToCloud, pullFromCloud, subscribeLocalBroadcast } from '../services/cloudSync';
 import {
   BarChart3,
   Plus,
@@ -60,13 +60,19 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
       setSincronizando(false);
     }, true);
 
+    const unsubscribeBroadcast = subscribeLocalBroadcast((payload) => {
+      if (payload.producao) {
+        setItens(payload.producao);
+      }
+    });
+
     const interval = setInterval(() => {
       pullFromCloud((payload) => {
         if (payload.producao) {
           setItens(payload.producao);
         }
       });
-    }, 2500);
+    }, 2000);
 
     const handleFocus = () => {
       pullFromCloud((payload) => {
@@ -76,6 +82,7 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
 
     window.addEventListener('focus', handleFocus);
     return () => {
+      unsubscribeBroadcast();
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
