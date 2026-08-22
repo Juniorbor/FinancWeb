@@ -6,6 +6,7 @@ let stateStore = {
   financeiro: [],
   pacientes: [],
   consultas: [],
+  fotografias: [],
   updatedAt: 0,
   updatedBy: ''
 };
@@ -31,6 +32,7 @@ exports.handler = async (event) => {
       if (Array.isArray(body.financeiro)) stateStore.financeiro = body.financeiro;
       if (Array.isArray(body.pacientes)) stateStore.pacientes = body.pacientes;
       if (Array.isArray(body.consultas)) stateStore.consultas = body.consultas;
+      if (Array.isArray(body.fotografias)) stateStore.fotografias = body.fotografias;
       
       stateStore.updatedAt = body.updatedAt || Date.now();
       stateStore.updatedBy = body.updatedBy || 'Dispositivo';

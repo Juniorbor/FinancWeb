@@ -92,19 +92,34 @@ export const CameraModal: React.FC<CameraModalProps> = ({
     const canvas = canvasRef.current || document.createElement('canvas');
     canvasRef.current = canvas;
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    // Redimensiona a foto para tamanho ideal (max 800px) garantindo sincronização instantânea entre celular e notebook
+    const maxDim = 800;
+    let width = video.videoWidth || 640;
+    let height = video.videoHeight || 480;
+
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+    }
+
+    canvas.width = width;
+    canvas.height = height;
 
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // Se for a câmera frontal, pode espelhar horizontalmente para ficar natural
+      // Se for a câmera frontal, espelha horizontalmente para ficar natural
       if (facingMode === 'user') {
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
       }
       
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      ctx.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
       setFotoCapturada(dataUrl);
       pararCamera();
     }

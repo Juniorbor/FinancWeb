@@ -13,6 +13,7 @@ export interface CloudDataPayload {
   financeiro?: any[];
   pacientes?: any[];
   consultas?: any[];
+  fotografias?: any[];
   updatedAt?: number;
   updatedBy?: string;
 }
@@ -52,6 +53,9 @@ export async function pushToCloud(data: Partial<CloudDataPayload>): Promise<bool
     if (Array.isArray(data.consultas)) {
       localStorage.setItem(KEYS.CONSULTAS, JSON.stringify(data.consultas));
     }
+    if (Array.isArray(data.fotografias)) {
+      localStorage.setItem(KEYS.FOTOGRAFIAS, JSON.stringify(data.fotografias));
+    }
 
     localStorage.setItem(KEYS.LAST_UPDATE, timestamp.toString());
 
@@ -60,6 +64,7 @@ export async function pushToCloud(data: Partial<CloudDataPayload>): Promise<bool
       financeiro: data.financeiro !== undefined ? data.financeiro : getItemJSON(KEYS.FINANCEIRO, []),
       pacientes: data.pacientes !== undefined ? data.pacientes : getItemJSON(KEYS.PACIENTES, []),
       consultas: data.consultas !== undefined ? data.consultas : getItemJSON(KEYS.CONSULTAS, []),
+      fotografias: data.fotografias !== undefined ? data.fotografias : getItemJSON(KEYS.FOTOGRAFIAS, []),
       updatedAt: timestamp,
       updatedBy: typeof window !== 'undefined' && window.innerWidth < 768 ? 'Celular (Android/iOS)' : 'Notebook/PC'
     };
@@ -117,7 +122,8 @@ export async function pullFromCloud(
         producao: getItemJSON(KEYS.PRODUCAO, []),
         financeiro: getItemJSON(KEYS.FINANCEIRO, []),
         pacientes: getItemJSON(KEYS.PACIENTES, []),
-        consultas: getItemJSON(KEYS.CONSULTAS, [])
+        consultas: getItemJSON(KEYS.CONSULTAS, []),
+        fotografias: getItemJSON(KEYS.FOTOGRAFIAS, [])
       });
       isSyncing = false;
       return true;
@@ -148,6 +154,11 @@ export async function pullFromCloud(
       if (Array.isArray(cloudData.consultas) && cloudData.consultas.length > 0) {
         localStorage.setItem(KEYS.CONSULTAS, JSON.stringify(cloudData.consultas));
         updatePayload.consultas = cloudData.consultas;
+        mudou = true;
+      }
+      if (Array.isArray(cloudData.fotografias) && cloudData.fotografias.length > 0) {
+        localStorage.setItem(KEYS.FOTOGRAFIAS, JSON.stringify(cloudData.fotografias));
+        updatePayload.fotografias = cloudData.fotografias;
         mudou = true;
       }
 

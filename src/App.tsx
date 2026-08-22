@@ -119,12 +119,14 @@ export function App() {
     pullFromCloud((payload) => {
       if (payload.pacientes && payload.pacientes.length > 0) setPacientes(payload.pacientes);
       if (payload.consultas && payload.consultas.length > 0) setConsultas(payload.consultas);
+      if (payload.fotografias && payload.fotografias.length > 0) setFotografias(payload.fotografias);
     }, true);
 
     // 2. Escuta alterações locais de abas simultâneas via BroadcastChannel
     const unsubscribeBroadcast = subscribeLocalBroadcast((payload) => {
       if (payload.pacientes && payload.pacientes.length > 0) setPacientes(payload.pacientes);
       if (payload.consultas && payload.consultas.length > 0) setConsultas(payload.consultas);
+      if (payload.fotografias && payload.fotografias.length > 0) setFotografias(payload.fotografias);
     });
 
     // 3. Polling em tempo real a cada 3 segundos para checar novas alterações no celular
@@ -132,6 +134,7 @@ export function App() {
       pullFromCloud((payload) => {
         if (payload.pacientes && payload.pacientes.length > 0) setPacientes(payload.pacientes);
         if (payload.consultas && payload.consultas.length > 0) setConsultas(payload.consultas);
+        if (payload.fotografias && payload.fotografias.length > 0) setFotografias(payload.fotografias);
       });
     }, 3000);
 
@@ -139,6 +142,7 @@ export function App() {
       pullFromCloud((payload) => {
         if (payload.pacientes && payload.pacientes.length > 0) setPacientes(payload.pacientes);
         if (payload.consultas && payload.consultas.length > 0) setConsultas(payload.consultas);
+        if (payload.fotografias && payload.fotografias.length > 0) setFotografias(payload.fotografias);
       }, true);
     };
 
@@ -213,15 +217,14 @@ export function App() {
   };
 
   // Handlers Pacientes (Add, Edit, Delete)
+  // Handlers Pacientes (Add, Edit, Delete)
   const handleAddPaciente = (novo: Omit<Paciente, 'id' | 'dataCadastro'>) => {
     const id = `pac-${Date.now()}`;
     const dataCadastro = new Date().toISOString().split('T')[0];
     const pacienteCriado: Paciente = { id, dataCadastro, ...novo };
-    const novos = [pacienteCriado, ...pacientes];
-    setPacientes(novos);
-    pushToCloud({ pacientes: novos });
+    const novosPacientes = [pacienteCriado, ...pacientes];
 
-    // Se o usuário capturou ou enviou foto no cadastro, salva automaticamente em 'Fotografias'
+    let novasFotos = [...fotografias];
     if (novo.fotoUrl) {
       const novaFoto: FotografiaClinica = {
         id: `foto-${Date.now()}`,
@@ -232,8 +235,12 @@ export function App() {
         titulo: `Foto de Perfil / Cadastro - ${novo.nome}`,
         descricao: `Fotografia de perfil inicial capturada durante o cadastro de ${novo.nome}.`
       };
-      setFotografias((prev) => [novaFoto, ...prev]);
+      novasFotos = [novaFoto, ...novasFotos];
+      setFotografias(novasFotos);
     }
+
+    setPacientes(novosPacientes);
+    pushToCloud({ pacientes: novosPacientes, fotografias: novasFotos });
 
     setPacienteOdontograma(pacienteCriado);
     addToast(`Paciente ${novo.nome} cadastrado com sucesso!`, 'sucesso');
@@ -241,10 +248,8 @@ export function App() {
 
   const handleEditPaciente = (paciente: Paciente) => {
     const atualizados = pacientes.map((p) => (p.id === paciente.id ? paciente : p));
-    setPacientes(atualizados);
-    pushToCloud({ pacientes: atualizados });
 
-    // Se possui fotoUrl e ela ainda não foi registrada em Fotografias
+    let novasFotos = [...fotografias];
     if (paciente.fotoUrl) {
       const jaExiste = fotografias.some((f) => f.imagemUrl === paciente.fotoUrl || f.pacienteId === paciente.id);
       if (!jaExiste) {
@@ -257,9 +262,13 @@ export function App() {
           titulo: `Foto de Perfil - ${paciente.nome}`,
           descricao: `Fotografia atualizada de perfil do paciente ${paciente.nome}.`
         };
-        setFotografias((prev) => [novaFoto, ...prev]);
+        novasFotos = [novaFoto, ...novasFotos];
+        setFotografias(novasFotos);
       }
     }
+
+    setPacientes(atualizados);
+    pushToCloud({ pacientes: atualizados, fotografias: novasFotos });
 
     if (pacientePerfilSelecionado?.id === paciente.id) {
       setPacientePerfilSelecionado(paciente);
@@ -302,12 +311,16 @@ export function App() {
   // Handlers Fotografias (Add, Delete)
   const handleAddFotografia = (nova: Omit<FotografiaClinica, 'id'>) => {
     const id = `foto-${Date.now()}`;
-    setFotografias((prev) => [{ id, ...nova }, ...prev]);
+    const novas = [{ id, ...nova }, ...fotografias];
+    setFotografias(novas);
+    pushToCloud({ fotografias: novas });
     addToast('Fotografia clínica registrada na galeria!', 'sucesso');
   };
 
   const handleDeleteFotografia = (id: string) => {
-    setFotografias((prev) => prev.filter((f) => f.id !== id));
+    const restantes = fotografias.filter((f) => f.id !== id);
+    setFotografias(restantes);
+    pushToCloud({ fotografias: restantes });
     addToast('Fotografia clínica removida da galeria.', 'info');
   };
 
