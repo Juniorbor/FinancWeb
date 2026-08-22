@@ -346,12 +346,8 @@ export function App() {
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
-        {/* Dynamic Views */}
-        <main className={`p-2 sm:p-4 lg:p-6 flex-1 w-full box-border mx-auto transition-all ${
-          activeTab === 'agenda' || activeTab === 'producao' || activeTab === 'financeiro'
-            ? 'max-w-full px-2 sm:px-4 lg:px-6'
-            : 'max-w-7xl'
-        }`}>
+        {/* Dynamic Views (Configurado para 90% da tela conforme solicitado) */}
+        <main className="p-2 sm:p-4 flex-1 box-border mx-auto w-[90%] max-w-[90vw] transition-all">
           {activeTab === 'dashboard' && (
             <Dashboard
               consultas={consultas}
