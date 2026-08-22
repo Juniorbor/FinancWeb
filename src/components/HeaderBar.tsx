@@ -11,7 +11,7 @@ import {
   Menu
 } from 'lucide-react';
 import type { Paciente, Consulta } from '../types';
-import logoImg from '../assets/logo.jpg';
+import LOGO_BASE64 from '../assets/logoData';
 
 interface HeaderBarProps {
   darkMode: boolean;
@@ -91,13 +91,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           onClick={() => onNavigate('dashboard')}
           className="flex items-center gap-2 cursor-pointer shrink-0"
         >
-          <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-teal-500/50 shadow-md flex items-center justify-center bg-white">
-            <img
-              src={logoImg}
-              alt="OdontoWeb Logo"
-              className="w-full h-full object-cover scale-[1.35]"
-            />
-          </div>
+          <img
+            src={LOGO_BASE64}
+            alt="OdontoWeb Logo"
+            className="w-9 h-9 object-contain rounded-full border-2 border-teal-500/50 shadow-md shrink-0 bg-white p-0.5"
+          />
           <span className="font-extrabold text-base tracking-tight hidden sm:inline-block">
             Odonto<span className="text-teal-400">Web</span>
           </span>

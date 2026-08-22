@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
-import logoImg from '../assets/logo.jpg';
+import LOGO_BASE64 from '../assets/logoData';
 
 interface LoginProps {
   onLoginSuccess: (usuario: { nome: string; email: string; funcao: string; cro: string }) => void;
@@ -41,13 +41,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         
         {/* Header do Login com Logo Oficial */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center p-0.5 rounded-full bg-white border-4 border-teal-500/50 shadow-2xl shadow-teal-500/30 overflow-hidden w-28 h-28 mx-auto">
-            <img
-              src={logoImg}
-              alt="OdontoWeb - Seu Portal de Saúde Bucal"
-              className="w-full h-full object-cover scale-[1.35]"
-            />
-          </div>
+          <img
+            src={LOGO_BASE64}
+            alt="OdontoWeb - Seu Portal de Saúde Bucal"
+            className="w-28 h-28 object-contain rounded-full border-4 border-teal-500/50 shadow-2xl shadow-teal-500/30 bg-white p-1 mx-auto"
+          />
           <div>
             <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1">
               Odonto<span className="text-teal-400">Web</span>

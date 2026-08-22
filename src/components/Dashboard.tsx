@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Consulta, Paciente, TransacaoFinanceira, StatusConsulta } from '../types';
+import LOGO_BASE64 from '../assets/logoData';
 import {
   Users,
   Calendar,
@@ -81,16 +82,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-          <div className="space-y-2">
-            <span className="inline-flex items-center gap-1.5 bg-teal-500/20 text-teal-300 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-teal-500/30">
-              <Sparkles className="w-3.5 h-3.5" /> OdontoWeb Platform 2026
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Painel de Atendimento Clínico & Gestão
-            </h1>
-            <p className="text-slate-400 text-xs sm:text-sm max-w-xl">
-              Resumo operacional diário do consultório — {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-            </p>
+          <div className="flex items-center gap-4">
+            <img
+              src={LOGO_BASE64}
+              alt="OdontoWeb Logo"
+              className="w-14 h-14 object-contain rounded-full border-2 border-teal-500/50 shadow-xl bg-white p-0.5 shrink-0 hidden sm:block"
+            />
+            <div className="space-y-1">
+              <span className="inline-flex items-center gap-1.5 bg-teal-500/20 text-teal-300 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-teal-500/30">
+                <Sparkles className="w-3.5 h-3.5" /> OdontoWeb Platform
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+                Painel de Atendimento & Gestão
+              </h1>
+              <p className="text-slate-400 text-xs sm:text-sm max-w-xl">
+                Resumo operacional diário do consultório — {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
