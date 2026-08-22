@@ -6,43 +6,32 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState<string>('dra.patricia@odontoweb.com');
-  const [senha, setSenha] = useState<string>('123456');
+  const [email, setEmail] = useState<string>('juniorbor1986@gmail.com');
+  const [senha, setSenha] = useState<string>('bitoninha1234');
   const [mostrarSenha, setMostrarSenha] = useState<boolean>(false);
   const [lembrar, setLembrar] = useState<boolean>(true);
   const [erro, setErro] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setErro('');
+
     if (!email || !senha) {
       setErro('Por favor, informe o e-mail e a senha de acesso.');
       return;
     }
 
-    if (senha.length < 4) {
-      setErro('A senha deve ter pelo menos 4 caracteres.');
-      return;
+    // Validação estrita das credenciais do usuário
+    if (email.trim().toLowerCase() === 'juniorbor1986@gmail.com' && senha === 'bitoninha1234') {
+      onLoginSuccess({
+        nome: 'Crenilto Junior',
+        email: 'juniorbor1986@gmail.com',
+        funcao: 'Administrador / Cirurgião-Dentista',
+        cro: 'CRO-RO 147369'
+      });
+    } else {
+      setErro('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
     }
-
-    // Login simulado com sucesso
-    setErro('');
-    onLoginSuccess({
-      nome: 'Dra. Patricia Medeiros',
-      email: email,
-      funcao: 'Cirurgiã-Dentista / Clínica Geral',
-      cro: 'CRO-SP 123456'
-    });
-  };
-
-  const handleQuickLogin = (nome: string, emailDemo: string, funcao: string, cro: string) => {
-    setEmail(emailDemo);
-    setSenha('123456');
-    onLoginSuccess({
-      nome,
-      email: emailDemo,
-      funcao,
-      cro
-    });
   };
 
   return (
@@ -57,14 +46,14 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1">
             Odonto<span className="text-teal-400">Web</span>
           </h1>
-          <p className="text-sm text-slate-400">Sistema de Gestão & Atendimento de Pacientes</p>
+          <p className="text-sm text-slate-400">Sistema de Gestão & Atendimento Odontológico</p>
         </div>
 
         {/* Card de Formulário */}
         <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6 border border-slate-100">
           <div className="space-y-1">
-            <h2 className="text-xl font-bold text-slate-800">Acessar Consultório</h2>
-            <p className="text-xs text-slate-500">Entre com suas credenciais de profissional de saúde.</p>
+            <h2 className="text-xl font-bold text-slate-800">Acessar Sistema</h2>
+            <p className="text-xs text-slate-500">Entre com seu e-mail e senha de acesso cadastrado.</p>
           </div>
 
           {erro && (
@@ -75,16 +64,16 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
           <form onSubmit={handleSubmit} className="space-y-4 text-sm">
             <div>
-              <label className="block text-xs font-bold uppercase text-slate-600 mb-1">E-mail Profissional</label>
+              <label className="block text-xs font-bold uppercase text-slate-600 mb-1">E-mail Cadastrado</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu.email@consultorio.com"
+                  placeholder="juniorbor1986@gmail.com"
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-4 py-2.5 text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-none font-medium"
                 />
               </div>
             </div>
@@ -99,7 +88,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   onChange={(e) => setSenha(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-10 py-2.5 text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-10 py-2.5 text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-none font-medium"
                 />
                 <button
                   type="button"
@@ -119,10 +108,14 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   onChange={(e) => setLembrar(e.target.checked)}
                   className="rounded text-teal-600 focus:ring-teal-500"
                 />
-                Lembrar neste computador
+                Manter conectado
               </label>
 
-              <a href="#esqueceu" onClick={(e) => { e.preventDefault(); alert('Instruções enviadas para o e-mail cadastrado.'); }} className="text-teal-600 hover:underline font-bold">
+              <a
+                href="#esqueceu"
+                onClick={(e) => { e.preventDefault(); alert('Instruções de recuperação de senha enviadas para juniorbor1986@gmail.com.'); }}
+                className="text-teal-600 hover:underline font-bold"
+              >
                 Esqueceu a senha?
               </a>
             </div>
@@ -135,37 +128,17 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          {/* Quick Demo Login Accounts */}
-          <div className="pt-4 border-t border-slate-100 space-y-2">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center">
-              Acesso Rápido de Teste (Demonstração)
-            </p>
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('Dra. Patricia Medeiros', 'dra.patricia@odontoweb.com', 'Clínica Geral & Ortodontia', 'CRO-SP 123456')}
-                className="bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 p-2.5 rounded-xl text-left transition-all flex items-center justify-between cursor-pointer"
-              >
-                <div>
-                  <p className="text-xs font-bold text-slate-800">Dra. Patricia Medeiros</p>
-                  <p className="text-[10px] text-slate-500">Clínica Geral • CRO-SP 123456</p>
-                </div>
-                <ShieldCheck className="w-4 h-4 text-teal-600" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('Dr. Lucas Ferreira', 'dr.lucas@odontoweb.com', 'Especialista em Endodontia', 'CRO-SP 654321')}
-                className="bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 p-2.5 rounded-xl text-left transition-all flex items-center justify-between cursor-pointer"
-              >
-                <div>
-                  <p className="text-xs font-bold text-slate-800">Dr. Lucas Ferreira</p>
-                  <p className="text-[10px] text-slate-500">Endodontia • CRO-SP 654321</p>
-                </div>
-                <ShieldCheck className="w-4 h-4 text-teal-600" />
-              </button>
+          {/* Badge de Acesso Autorizado */}
+          <div className="pt-3 border-t border-slate-100">
+            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="font-bold text-slate-800">Crenilto Junior</p>
+                <p className="text-[11px] text-slate-500">juniorbor1986@gmail.com</p>
+              </div>
+              <ShieldCheck className="w-5 h-5 text-teal-600 shrink-0" />
             </div>
           </div>
+
         </div>
 
         {/* Footer */}
