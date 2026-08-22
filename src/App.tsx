@@ -81,22 +81,25 @@ export function App() {
 
   // Sincronização em nuvem entre dispositivos (celular e notebook)
   useEffect(() => {
-    pushToCloud({ pacientes, consultas });
-  }, [pacientes, consultas]);
+    // 1. Busca inicial imediata na nuvem ao abrir o aplicativo
+    pullFromCloud((payload) => {
+      if (payload.pacientes) setPacientes(payload.pacientes);
+      if (payload.consultas) setConsultas(payload.consultas);
+    }, true);
 
-  useEffect(() => {
+    // 2. Polling contínuo a cada 2.5 segundos
     const interval = setInterval(() => {
       pullFromCloud((payload) => {
         if (payload.pacientes) setPacientes(payload.pacientes);
         if (payload.consultas) setConsultas(payload.consultas);
       });
-    }, 3000);
+    }, 2500);
 
     const handleFocus = () => {
       pullFromCloud((payload) => {
         if (payload.pacientes) setPacientes(payload.pacientes);
         if (payload.consultas) setConsultas(payload.consultas);
-      });
+      }, true);
     };
 
     window.addEventListener('focus', handleFocus);
@@ -139,22 +142,30 @@ export function App() {
   // Handlers Consultas (Add, Edit, Delete)
   const handleAddConsulta = (nova: Omit<Consulta, 'id'>) => {
     const id = `con-${Date.now()}`;
-    setConsultas((prev) => [{ id, ...nova }, ...prev]);
+    const novas = [{ id, ...nova }, ...consultas];
+    setConsultas(novas);
+    pushToCloud({ consultas: novas });
     addToast('Nova consulta agendada!', 'sucesso');
   };
 
   const handleEditConsulta = (consulta: Consulta) => {
-    setConsultas((prev) => prev.map((c) => (c.id === consulta.id ? consulta : c)));
+    const atualizadas = consultas.map((c) => (c.id === consulta.id ? consulta : c));
+    setConsultas(atualizadas);
+    pushToCloud({ consultas: atualizadas });
     addToast('Dados da consulta atualizados!', 'sucesso');
   };
 
   const handleDeleteConsulta = (id: string) => {
-    setConsultas((prev) => prev.filter((c) => c.id !== id));
+    const restantes = consultas.filter((c) => c.id !== id);
+    setConsultas(restantes);
+    pushToCloud({ consultas: restantes });
     addToast('Consulta removida da agenda com sucesso.', 'info');
   };
 
   const handleUpdateStatusConsulta = (id: string, novoStatus: StatusConsulta) => {
-    setConsultas((prev) => prev.map((c) => (c.id === id ? { ...c, status: novoStatus } : c)));
+    const alteradas = consultas.map((c) => (c.id === id ? { ...c, status: novoStatus } : c));
+    setConsultas(alteradas);
+    pushToCloud({ consultas: alteradas });
     addToast(`Status da consulta alterado para ${novoStatus}.`, 'info');
   };
 
@@ -163,13 +174,17 @@ export function App() {
     const id = `pac-${Date.now()}`;
     const dataCadastro = new Date().toISOString().split('T')[0];
     const pacienteCriado: Paciente = { id, dataCadastro, ...novo };
-    setPacientes((prev) => [pacienteCriado, ...prev]);
+    const novos = [pacienteCriado, ...pacientes];
+    setPacientes(novos);
+    pushToCloud({ pacientes: novos });
     setPacienteOdontograma(pacienteCriado);
     addToast(`Paciente ${novo.nome} cadastrado com sucesso!`, 'sucesso');
   };
 
   const handleEditPaciente = (paciente: Paciente) => {
-    setPacientes((prev) => prev.map((p) => (p.id === paciente.id ? paciente : p)));
+    const atualizados = pacientes.map((p) => (p.id === paciente.id ? paciente : p));
+    setPacientes(atualizados);
+    pushToCloud({ pacientes: atualizados });
     if (pacientePerfilSelecionado?.id === paciente.id) {
       setPacientePerfilSelecionado(paciente);
     }
@@ -177,7 +192,9 @@ export function App() {
   };
 
   const handleDeletePaciente = (id: string) => {
-    setPacientes((prev) => prev.filter((p) => p.id !== id));
+    const restantes = pacientes.filter((p) => p.id !== id);
+    setPacientes(restantes);
+    pushToCloud({ pacientes: restantes });
     if (pacientePerfilSelecionado?.id === id) {
       setPacientePerfilSelecionado(null);
       setActiveTab('pacientes');

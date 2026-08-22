@@ -14,7 +14,8 @@ import {
   UserCheck,
   User,
   Users,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 
 interface ProducaoProps {
@@ -37,29 +38,40 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
         console.error('Erro ao ler registros do localStorage:', e);
       }
     }
-    return []; // Vazio por padrão conforme solicitado
+    return [];
   });
 
-  // Sincronização em nuvem automática entre celular e notebook
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(itens));
-    pushToCloud({ producao: itens });
-  }, [itens]);
+  const [sincronizando, setSincronizando] = useState<boolean>(false);
 
-  // Polling em tempo real (a cada 3 segundos) para receber atualizações feitas em outro dispositivo
+  // Função central para salvar localmente e enviar à nuvem sem sobregravar na carga inicial
+  const updateItensECloud = (novosItens: ItemProducaoTomo[]) => {
+    setItens(novosItens);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(novosItens));
+    pushToCloud({ producao: novosItens });
+  };
+
+  // Carregamento Prioritário ao abrir e Polling em tempo real
   useEffect(() => {
+    setSincronizando(true);
+    pullFromCloud((payload) => {
+      if (payload.producao) {
+        setItens(payload.producao);
+      }
+      setSincronizando(false);
+    }, true);
+
     const interval = setInterval(() => {
       pullFromCloud((payload) => {
         if (payload.producao) {
           setItens(payload.producao);
         }
       });
-    }, 3000);
+    }, 2500);
 
     const handleFocus = () => {
       pullFromCloud((payload) => {
         if (payload.producao) setItens(payload.producao);
-      });
+      }, true);
     };
 
     window.addEventListener('focus', handleFocus);
@@ -119,7 +131,7 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
       proprietario: novoProprietario
     };
 
-    setItens((prev) => [novoItem, ...prev]);
+    updateItensECloud([novoItem, ...itens]);
     setModalAberto(false);
     setNovoNome('');
     setNovoId(`${Math.floor(10000 + Math.random() * 90000)}`);
@@ -127,13 +139,13 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
 
   // Exclusão individual salva permanentemente
   const handleDeleteItem = (id: string) => {
-    setItens((prev) => prev.filter((item) => item.id !== id));
+    const restantes = itens.filter((item) => item.id !== id);
+    updateItensECloud(restantes);
   };
 
   // Limpa todos os registros permanentemente
   const handleZerarTodosRegistros = () => {
-    setItens([]);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+    updateItensECloud([]);
     setModalZerarAberto(false);
   };
 
@@ -178,6 +190,14 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
     ? ['Todas', ...CLINICAS_BERNARDO]
     : ['Todas', ...CLINICAS_FERNANDO, ...CLINICAS_BERNARDO];
 
+  const handleManualSync = async () => {
+    setSincronizando(true);
+    await pullFromCloud((payload) => {
+      if (payload.producao) setItens(payload.producao);
+    }, true);
+    setSincronizando(false);
+  };
+
   return (
     <div className="space-y-6">
       
@@ -187,7 +207,7 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
       }`}>
         <div>
           <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-md border border-teal-500/20 flex items-center gap-1 w-fit">
-            <FileSpreadsheet className="w-3.5 h-3.5" /> Módulo de Gestão de Produção (Fernando & Bernardo)
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Módulo de Gestão de Produção (Fernando & Bernardo - Sincronizado)
           </span>
           <h2 className="text-xl font-extrabold flex items-center gap-2 mt-1">
             <BarChart3 className="w-6 h-6 text-teal-500" /> Controle de Produção
@@ -198,6 +218,17 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
         </div>
 
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full md:w-auto">
+          <button
+            type="button"
+            onClick={handleManualSync}
+            disabled={sincronizando}
+            className="bg-slate-800 hover:bg-slate-700 text-teal-400 font-bold px-3.5 py-2.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer shadow w-full sm:w-auto"
+            title="Sincronizar dados em tempo real com a nuvem"
+          >
+            <RefreshCw className={`w-4 h-4 ${sincronizando ? 'animate-spin' : ''}`} />
+            <span>{sincronizando ? 'Sincronizando...' : 'Atualizar Nuvem'}</span>
+          </button>
+
           {itens.length > 0 && (
             <button
               type="button"

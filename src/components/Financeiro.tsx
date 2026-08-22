@@ -15,7 +15,8 @@ import {
   Search,
   X,
   Download,
-  Wallet
+  Wallet,
+  RefreshCw
 } from 'lucide-react';
 
 interface FinanceiroProps {
@@ -77,26 +78,39 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
     return TRANSACOES_INICIAIS;
   });
 
-  // Sincronização em nuvem automática entre celular e notebook
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(transacoes));
-    pushToCloud({ financeiro: transacoes });
-  }, [transacoes]);
+  const [sincronizando, setSincronizando] = useState<boolean>(false);
 
-  // Polling em tempo real (a cada 3 segundos) para receber atualizações feitas em outro dispositivo
+  // Função central para salvar e sincronizar instantaneamente na nuvem para todos os dispositivos
+  const updateTransacoesECloud = (novas: TransacaoPessoal[]) => {
+    setTransacoes(novas);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(novas));
+    pushToCloud({ financeiro: novas });
+  };
+
+  // Carregamento e Polling em Tempo Real da Nuvem
   useEffect(() => {
+    // 1. Busca imediata na nuvem ao abrir
+    setSincronizando(true);
+    pullFromCloud((payload) => {
+      if (payload.financeiro) {
+        setTransacoes(payload.financeiro);
+      }
+      setSincronizando(false);
+    }, true);
+
+    // 2. Polling contínuo a cada 2.5 segundos
     const interval = setInterval(() => {
       pullFromCloud((payload) => {
         if (payload.financeiro) {
           setTransacoes(payload.financeiro);
         }
       });
-    }, 3000);
+    }, 2500);
 
     const handleFocus = () => {
       pullFromCloud((payload) => {
         if (payload.financeiro) setTransacoes(payload.financeiro);
-      });
+      }, true);
     };
 
     window.addEventListener('focus', handleFocus);
@@ -178,23 +192,22 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
     if (!descricao) return;
 
     if (transacaoEditando) {
-      setTransacoes((prev) =>
-        prev.map((item) =>
-          item.id === transacaoEditando.id
-            ? {
-                ...item,
-                descricao,
-                tipo,
-                valor: Number(valor),
-                categoria,
-                data,
-                status,
-                parcelas: parcelas || undefined,
-                observacao: observacao || undefined
-              }
-            : item
-        )
+      const atualizadas = transacoes.map((item) =>
+        item.id === transacaoEditando.id
+          ? {
+              ...item,
+              descricao,
+              tipo,
+              valor: Number(valor),
+              categoria,
+              data,
+              status,
+              parcelas: parcelas || undefined,
+              observacao: observacao || undefined
+            }
+          : item
       );
+      updateTransacoesECloud(atualizadas);
     } else {
       const nova: TransacaoPessoal = {
         id: `fin-${Date.now()}`,
@@ -207,20 +220,30 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
         parcelas: parcelas || undefined,
         observacao: observacao || undefined
       };
-      setTransacoes((prev) => [nova, ...prev]);
+      updateTransacoesECloud([nova, ...transacoes]);
     }
 
     setModalAberto(false);
   };
 
   const handleDeleteTransacao = (id: string) => {
-    setTransacoes((prev) => prev.filter((t) => t.id !== id));
+    const restantes = transacoes.filter((t) => t.id !== id);
+    updateTransacoesECloud(restantes);
   };
 
   const handleToggleStatus = (id: string) => {
-    setTransacoes((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: t.status === 'Pago' ? 'Pendente' : 'Pago' } : t))
+    const alteradas = transacoes.map((t) =>
+      t.id === id ? { ...t, status: (t.status === 'Pago' ? 'Pendente' : 'Pago') as 'Pago' | 'Pendente' } : t
     );
+    updateTransacoesECloud(alteradas);
+  };
+
+  const handleManualSync = async () => {
+    setSincronizando(true);
+    await pullFromCloud((payload) => {
+      if (payload.financeiro) setTransacoes(payload.financeiro);
+    }, true);
+    setSincronizando(false);
   };
 
   return (
@@ -232,7 +255,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
       }`}>
         <div>
           <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-md border border-teal-500/20 flex items-center gap-1 w-fit">
-            <Wallet className="w-3.5 h-3.5" /> Módulo de Controle Orçamentário Familiar & Pessoal
+            <Wallet className="w-3.5 h-3.5" /> Módulo de Controle Orçamentário Familiar & Pessoal (Sincronizado)
           </span>
           <h2 className="text-xl font-extrabold flex items-center gap-2 mt-1">
             <DollarSign className="w-6 h-6 text-teal-500" /> Gestão Financeira Pessoal & Despesas do Lar
@@ -243,6 +266,16 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
         </div>
 
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full md:w-auto">
+          <button
+            onClick={handleManualSync}
+            disabled={sincronizando}
+            className="bg-slate-800 hover:bg-slate-700 text-teal-400 font-bold px-3.5 py-2.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer shadow w-full sm:w-auto"
+            title="Sincronizar dados em tempo real com a nuvem"
+          >
+            <RefreshCw className={`w-4 h-4 ${sincronizando ? 'animate-spin' : ''}`} />
+            <span>{sincronizando ? 'Sincronizando...' : 'Atualizar Nuvem'}</span>
+          </button>
+
           <button
             onClick={() => window.print()}
             className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer shadow w-full sm:w-auto"
