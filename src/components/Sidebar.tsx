@@ -14,6 +14,8 @@ import {
   X
 } from 'lucide-react';
 
+import logoImg from '../assets/logo.jpg';
+
 interface SidebarProps {
   activeTab: string;
   onNavigate: (tab: string) => void;
@@ -84,11 +86,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => handleItemClick('dashboard')}
             className="flex items-center gap-3 cursor-pointer overflow-hidden"
           >
-            <img
-              src="/logo.jpg"
-              alt="OdontoWeb Logo"
-              className="w-11 h-11 object-contain rounded-full border-2 border-teal-500/40 shadow-md shadow-teal-500/20 shrink-0 bg-white p-0.5"
-            />
+            <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-teal-500/50 shadow-md shadow-teal-500/20 shrink-0 flex items-center justify-center bg-white">
+              <img
+                src={logoImg}
+                alt="OdontoWeb Logo"
+                className="w-full h-full object-cover scale-[1.35]"
+              />
+            </div>
             {(!isCollapsed || isMobileOpen) && (
               <div className="transition-opacity duration-300">
                 <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
