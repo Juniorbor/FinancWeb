@@ -96,7 +96,7 @@ export function App() {
   const [pacienteOdontograma, setPacienteOdontograma] = useState<Paciente | null>(null);
   const [anamnese, setAnamnese] = useState<AnamneseDetalhada>(mockAnamneseDetalhada);
   const [radiografias, setRadiografias] = useState<RadiografiaExame[]>(mockRadiografias);
-  const [fotografias, setFotografias] = useState<FotografiaClinica[]>(mockFotografias);
+  const [fotografias, setFotografias] = useState<FotografiaClinica[]>(() => getItemJSON(KEYS.FOTOGRAFIAS, mockFotografias));
   const [timeline] = useState<HistoricoTimeline[]>(mockTimeline);
   const [mensagensIA, setMensagensIA] = useState<MensagemIA[]>(mockMensagensIA);
 
@@ -108,6 +108,10 @@ export function App() {
   useEffect(() => {
     localStorage.setItem(KEYS.CONSULTAS, JSON.stringify(consultas));
   }, [consultas]);
+
+  useEffect(() => {
+    localStorage.setItem(KEYS.FOTOGRAFIAS, JSON.stringify(fotografias));
+  }, [fotografias]);
 
   // Sincronização em nuvem e local entre dispositivos (celular e notebook)
   useEffect(() => {
@@ -216,6 +220,21 @@ export function App() {
     const novos = [pacienteCriado, ...pacientes];
     setPacientes(novos);
     pushToCloud({ pacientes: novos });
+
+    // Se o usuário capturou ou enviou foto no cadastro, salva automaticamente em 'Fotografias'
+    if (novo.fotoUrl) {
+      const novaFoto: FotografiaClinica = {
+        id: `foto-${Date.now()}`,
+        pacienteId: id,
+        categoria: 'Frontal',
+        data: dataCadastro,
+        imagemUrl: novo.fotoUrl,
+        titulo: `Foto de Perfil / Cadastro - ${novo.nome}`,
+        descricao: `Fotografia de perfil inicial capturada durante o cadastro de ${novo.nome}.`
+      };
+      setFotografias((prev) => [novaFoto, ...prev]);
+    }
+
     setPacienteOdontograma(pacienteCriado);
     addToast(`Paciente ${novo.nome} cadastrado com sucesso!`, 'sucesso');
   };
@@ -224,6 +243,24 @@ export function App() {
     const atualizados = pacientes.map((p) => (p.id === paciente.id ? paciente : p));
     setPacientes(atualizados);
     pushToCloud({ pacientes: atualizados });
+
+    // Se possui fotoUrl e ela ainda não foi registrada em Fotografias
+    if (paciente.fotoUrl) {
+      const jaExiste = fotografias.some((f) => f.imagemUrl === paciente.fotoUrl || f.pacienteId === paciente.id);
+      if (!jaExiste) {
+        const novaFoto: FotografiaClinica = {
+          id: `foto-${Date.now()}`,
+          pacienteId: paciente.id,
+          categoria: 'Frontal',
+          data: new Date().toISOString().split('T')[0],
+          imagemUrl: paciente.fotoUrl,
+          titulo: `Foto de Perfil - ${paciente.nome}`,
+          descricao: `Fotografia atualizada de perfil do paciente ${paciente.nome}.`
+        };
+        setFotografias((prev) => [novaFoto, ...prev]);
+      }
+    }
+
     if (pacientePerfilSelecionado?.id === paciente.id) {
       setPacientePerfilSelecionado(paciente);
     }

@@ -28,6 +28,7 @@ export const KEYS = {
   FINANCEIRO: 'odonto_financeiro_pessoal_v1',
   PACIENTES: 'odonto_pacientes_v1',
   CONSULTAS: 'odonto_consultas_v1',
+  FOTOGRAFIAS: 'odonto_fotografias_v1',
   LAST_UPDATE: 'odonto_last_sync_timestamp'
 };
 

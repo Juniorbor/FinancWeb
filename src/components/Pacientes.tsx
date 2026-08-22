@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Paciente } from '../types';
+import { CameraModal } from './CameraModal';
 import {
   Users,
   Search,
@@ -17,6 +18,7 @@ import {
   AlertTriangle,
   Upload,
   User as UserIcon,
+  Camera,
   X
 } from 'lucide-react';
 
@@ -42,6 +44,7 @@ export const Pacientes: React.FC<PacientesProps> = ({
   const [busca, setBusca] = useState<string>('');
   const [modoVisualizacao, setModoVisualizacao] = useState<'cards' | 'tabela'>('cards');
   const [modalAberto, setModalAberto] = useState<boolean>(false);
+  const [cameraAberta, setCameraAberta] = useState<boolean>(false);
   const [pacienteEditando, setPacienteEditando] = useState<Paciente | null>(null);
   const [pacienteExcluindoId, setPacienteExcluindoId] = useState<string | null>(null);
 
@@ -411,17 +414,27 @@ export const Pacientes: React.FC<PacientesProps> = ({
                     </div>
                   )}
 
-                  <div className="space-y-1.5 flex-1">
-                    <label className="bg-slate-800 hover:bg-slate-700 text-teal-400 border border-slate-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer w-fit">
-                      <Upload className="w-4 h-4" /> Selecionar Foto do Computador
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFotoUpload}
-                        className="hidden"
-                      />
-                    </label>
-                    <p className="text-[10px] text-slate-400">Suporta JPG, PNG ou WebP. Se não enviar foto, serão usadas as iniciais do nome.</p>
+                  <div className="space-y-2 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCameraAberta(true)}
+                        className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 cursor-pointer shadow-md shadow-teal-500/20 transition-all"
+                      >
+                        <Camera className="w-4 h-4 fill-slate-950" /> 📸 Tirar Foto com a Câmera
+                      </button>
+
+                      <label className="bg-slate-800 hover:bg-slate-700 text-teal-400 border border-slate-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer w-fit">
+                        <Upload className="w-4 h-4" /> Selecionar Arquivo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-slate-400">Tire uma foto ao vivo usando a câmera do celular/pc ou envie um arquivo. A foto será anexada ao cadastro e salva em 'Fotografias'.</p>
                   </div>
                 </div>
               </div>
@@ -573,6 +586,15 @@ export const Pacientes: React.FC<PacientesProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Captura de Foto com a Câmera do Celular/Notebook */}
+      <CameraModal
+        isOpen={cameraAberta}
+        onClose={() => setCameraAberta(false)}
+        onCapture={(fotoBase64) => setFotoUrl(fotoBase64)}
+        darkMode={darkMode}
+        tituloModal="📸 Tirar Foto de Cadastro do Paciente"
+      />
     </div>
   );
 };

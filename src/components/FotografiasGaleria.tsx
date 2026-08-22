@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { FotografiaClinica } from '../types';
+import { CameraModal } from './CameraModal';
 import {
   Camera,
   Filter,
@@ -34,6 +35,7 @@ export const FotografiasGaleria: React.FC<FotografiasGaleriaProps> = ({
 
   // State Modal Nova Foto
   const [modalAberto, setModalAberto] = useState<boolean>(false);
+  const [cameraAberta, setCameraAberta] = useState<boolean>(false);
   const [fotoExcluindoId, setFotoExcluindoId] = useState<string | null>(null);
 
   const [titulo, setTitulo] = useState<string>('');
@@ -364,22 +366,30 @@ export const FotografiasGaleria: React.FC<FotografiasGaleriaProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <label className={`border-2 border-dashed border-slate-700 hover:border-teal-500 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer bg-slate-800/40 hover:bg-slate-800 transition-all ${
-                    isFormatoRetrato(categoria) ? 'aspect-[3/4] max-w-xs mx-auto p-6' : 'p-8'
-                  }`}>
-                    <Upload className="w-8 h-8 text-teal-500" />
-                    <span className="font-extrabold text-slate-200 text-center">Clique para selecionar foto do computador</span>
-                    <span className="text-[10px] text-teal-400 font-bold text-center">
+                  <div className="space-y-2">
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setCameraAberta(true)}
+                        className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-slate-950 px-4 py-3 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-teal-500/20 transition-all flex-1"
+                      >
+                        <Camera className="w-4.5 h-4.5 fill-slate-950" /> 📸 Tirar Foto com a Câmera
+                      </button>
+
+                      <label className="bg-slate-800 hover:bg-slate-700 text-teal-400 border border-slate-700 px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer flex-1">
+                        <Upload className="w-4.5 h-4.5" /> Selecionar do Dispositivo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-teal-400 text-center font-bold">
                       {isFormatoRetrato(categoria) ? '📸 Moldura Retrato Vertical (Ideal para Rosto e Sorriso)' : '📸 Moldura Horizontal'}
-                    </span>
-                    <span className="text-[10px] text-slate-400">Formatos: JPG, PNG, WebP</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFotoUpload}
-                      className="hidden"
-                    />
-                  </label>
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -496,6 +506,15 @@ export const FotografiasGaleria: React.FC<FotografiasGaleriaProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Câmera para Fotografias Clínicas */}
+      <CameraModal
+        isOpen={cameraAberta}
+        onClose={() => setCameraAberta(false)}
+        onCapture={(fotoBase64) => setImagemUrl(fotoBase64)}
+        darkMode={darkMode}
+        tituloModal="📸 Capturar Fotografia Clínica com a Câmera"
+      />
     </div>
   );
 };
