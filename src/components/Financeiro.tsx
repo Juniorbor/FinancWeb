@@ -80,6 +80,11 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
 
   const [sincronizando, setSincronizando] = useState<boolean>(false);
 
+  // Salvamento automático permanente no dispositivo local
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(transacoes));
+  }, [transacoes]);
+
   // Função central para salvar e sincronizar instantaneamente na nuvem para todos os dispositivos
   const updateTransacoesECloud = (novas: TransacaoPessoal[]) => {
     setTransacoes(novas);

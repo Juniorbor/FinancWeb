@@ -43,7 +43,7 @@ import type {
   MensagemIA
 } from './types';
 
-import { pushToCloud, pullFromCloud, subscribeLocalBroadcast } from './services/cloudSync';
+import { pushToCloud, pullFromCloud, subscribeLocalBroadcast, KEYS, getItemJSON } from './services/cloudSync';
 
 const SESSION_KEY = 'odonto_usuario_sessao_v1';
 
@@ -88,9 +88,9 @@ export function App() {
   // Notificações Toast
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // States da aplicação (Inicia limpo/zerado para novos cadastros do usuário)
-  const [consultas, setConsultas] = useState<Consulta[]>(mockConsultas);
-  const [pacientes, setPacientes] = useState<Paciente[]>(mockPacientes);
+  // States da aplicação com Persistência Permanente no Dispositivo Local (localStorage)
+  const [consultas, setConsultas] = useState<Consulta[]>(() => getItemJSON(KEYS.CONSULTAS, mockConsultas));
+  const [pacientes, setPacientes] = useState<Paciente[]>(() => getItemJSON(KEYS.PACIENTES, mockPacientes));
   const [transacoes] = useState<TransacaoFinanceira[]>(mockTransacoes);
   const [dentes, setDentes] = useState<Record<number, DenteInfo>>(dentesIniciaisMock);
   const [pacienteOdontograma, setPacienteOdontograma] = useState<Paciente | null>(null);
@@ -100,32 +100,41 @@ export function App() {
   const [timeline] = useState<HistoricoTimeline[]>(mockTimeline);
   const [mensagensIA, setMensagensIA] = useState<MensagemIA[]>(mockMensagensIA);
 
+  // Efeito de salvamento permanente automático no dispositivo local
+  useEffect(() => {
+    localStorage.setItem(KEYS.PACIENTES, JSON.stringify(pacientes));
+  }, [pacientes]);
+
+  useEffect(() => {
+    localStorage.setItem(KEYS.CONSULTAS, JSON.stringify(consultas));
+  }, [consultas]);
+
   // Sincronização em nuvem e local entre dispositivos (celular e notebook)
   useEffect(() => {
     // 1. Carregamento prioritário na nuvem ao abrir a aplicação
     pullFromCloud((payload) => {
-      if (payload.pacientes) setPacientes(payload.pacientes);
-      if (payload.consultas) setConsultas(payload.consultas);
+      if (payload.pacientes && payload.pacientes.length > 0) setPacientes(payload.pacientes);
+      if (payload.consultas && payload.consultas.length > 0) setConsultas(payload.consultas);
     }, true);
 
     // 2. Escuta alterações locais de abas simultâneas via BroadcastChannel
     const unsubscribeBroadcast = subscribeLocalBroadcast((payload) => {
-      if (payload.pacientes) setPacientes(payload.pacientes);
-      if (payload.consultas) setConsultas(payload.consultas);
+      if (payload.pacientes && payload.pacientes.length > 0) setPacientes(payload.pacientes);
+      if (payload.consultas && payload.consultas.length > 0) setConsultas(payload.consultas);
     });
 
-    // 3. Polling em tempo real a cada 2 segundos para checar novas alterações no celular
+    // 3. Polling em tempo real a cada 3 segundos para checar novas alterações no celular
     const interval = setInterval(() => {
       pullFromCloud((payload) => {
-        if (payload.pacientes) setPacientes(payload.pacientes);
-        if (payload.consultas) setConsultas(payload.consultas);
+        if (payload.pacientes && payload.pacientes.length > 0) setPacientes(payload.pacientes);
+        if (payload.consultas && payload.consultas.length > 0) setConsultas(payload.consultas);
       });
-    }, 2000);
+    }, 3000);
 
     const handleFocus = () => {
       pullFromCloud((payload) => {
-        if (payload.pacientes) setPacientes(payload.pacientes);
-        if (payload.consultas) setConsultas(payload.consultas);
+        if (payload.pacientes && payload.pacientes.length > 0) setPacientes(payload.pacientes);
+        if (payload.consultas && payload.consultas.length > 0) setConsultas(payload.consultas);
       }, true);
     };
 

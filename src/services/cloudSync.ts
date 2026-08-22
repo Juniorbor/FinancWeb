@@ -1,5 +1,5 @@
 // Serviço de Sincronização em Nuvem em Tempo Real para OdontoWeb
-// Permite que qualquer alteração no celular (Android/iOS) apareça instantaneamente no notebook!
+// Garante persistência permanente de dados localmente e sincronização com a nuvem sem perdas
 
 const getCloudEndpoint = () => {
   if (typeof window !== 'undefined' && window.location.hostname.includes('netlify.app')) {
@@ -32,11 +32,26 @@ export const KEYS = {
 };
 
 /**
- * Envia as alterações locais para a nuvem Netlify para que o notebook/celular receba em tempo real
+ * Envia as alterações para o localStorage local e para a nuvem
  */
 export async function pushToCloud(data: Partial<CloudDataPayload>): Promise<boolean> {
   try {
     const timestamp = Date.now();
+
+    // Salva imediatamente em localStorage local
+    if (Array.isArray(data.producao)) {
+      localStorage.setItem(KEYS.PRODUCAO, JSON.stringify(data.producao));
+    }
+    if (Array.isArray(data.financeiro)) {
+      localStorage.setItem(KEYS.FINANCEIRO, JSON.stringify(data.financeiro));
+    }
+    if (Array.isArray(data.pacientes)) {
+      localStorage.setItem(KEYS.PACIENTES, JSON.stringify(data.pacientes));
+    }
+    if (Array.isArray(data.consultas)) {
+      localStorage.setItem(KEYS.CONSULTAS, JSON.stringify(data.consultas));
+    }
+
     localStorage.setItem(KEYS.LAST_UPDATE, timestamp.toString());
 
     const payload: CloudDataPayload = {
@@ -48,7 +63,7 @@ export async function pushToCloud(data: Partial<CloudDataPayload>): Promise<bool
       updatedBy: typeof window !== 'undefined' && window.innerWidth < 768 ? 'Celular (Android/iOS)' : 'Notebook/PC'
     };
 
-    // Notifica abas locais instantaneamente via BroadcastChannel
+    // Notifica abas locais via BroadcastChannel
     if (broadcastChannel) {
       broadcastChannel.postMessage({ type: 'SYNC_UPDATE', payload });
     }
@@ -60,21 +75,21 @@ export async function pushToCloud(data: Partial<CloudDataPayload>): Promise<bool
     });
 
     if (res.ok) {
-      console.log('✅ Alterações sincronizadas com a nuvem!');
+      console.log('✅ Alterações salvas no dispositivo e sincronizadas na nuvem!');
       return true;
     }
   } catch (error) {
-    console.warn('Conectando à nuvem de sincronização...', error);
+    console.warn('Dados salvos no dispositivo local (serviço em nuvem aguardando conexão):', error);
   }
   return false;
 }
 
 /**
- * Baixa os dados da nuvem se houver dados mais novos ou na inicialização
+ * Baixa as atualizações da nuvem com proteção total contra sobregravação de dados locais
  */
 export async function pullFromCloud(
   onUpdate: (payload: CloudDataPayload) => void,
-  force: boolean = false
+  _force: boolean = false
 ): Promise<boolean> {
   if (isSyncing) return false;
   isSyncing = true;
@@ -94,33 +109,57 @@ export async function pullFromCloud(
     const remoteTimestamp = cloudData.updatedAt || 0;
     const localTimestamp = Number(localStorage.getItem(KEYS.LAST_UPDATE) || '0');
 
-    // Atualiza se o remoto for mais recente ou se for a carga inicial (force = true)
-    if (force || remoteTimestamp > localTimestamp || (localTimestamp === 0 && remoteTimestamp > 0)) {
-      console.log(`⚡ Sincronizando dados da nuvem (${cloudData.updatedBy || 'Dispositivo'}):`, cloudData);
+    // PROTEÇÃO CRÍTICA: Se a nuvem estiver vazia (remoteTimestamp === 0) e houver dados locais, empurra os dados locais para a nuvem!
+    if (remoteTimestamp === 0 && localTimestamp > 0) {
+      console.log('📤 Inicializando dados na nuvem a partir do dispositivo local...');
+      pushToCloud({
+        producao: getItemJSON(KEYS.PRODUCAO, []),
+        financeiro: getItemJSON(KEYS.FINANCEIRO, []),
+        pacientes: getItemJSON(KEYS.PACIENTES, []),
+        consultas: getItemJSON(KEYS.CONSULTAS, [])
+      });
+      isSyncing = false;
+      return true;
+    }
+
+    // Apenas atualiza o estado local se o payload da nuvem for ESTRITAMENTE MAIS RECENTE que o local
+    if (remoteTimestamp > localTimestamp) {
+      console.log(`⚡ Atualizando dispositivo com dados mais recentes da nuvem (${cloudData.updatedBy || 'Remoto'}):`, cloudData);
       
-      if (Array.isArray(cloudData.producao)) {
+      let mudou = false;
+      const updatePayload: CloudDataPayload = {};
+
+      if (Array.isArray(cloudData.producao) && cloudData.producao.length > 0) {
         localStorage.setItem(KEYS.PRODUCAO, JSON.stringify(cloudData.producao));
+        updatePayload.producao = cloudData.producao;
+        mudou = true;
       }
-      if (Array.isArray(cloudData.financeiro)) {
+      if (Array.isArray(cloudData.financeiro) && cloudData.financeiro.length > 0) {
         localStorage.setItem(KEYS.FINANCEIRO, JSON.stringify(cloudData.financeiro));
+        updatePayload.financeiro = cloudData.financeiro;
+        mudou = true;
       }
-      if (Array.isArray(cloudData.pacientes)) {
+      if (Array.isArray(cloudData.pacientes) && cloudData.pacientes.length > 0) {
         localStorage.setItem(KEYS.PACIENTES, JSON.stringify(cloudData.pacientes));
+        updatePayload.pacientes = cloudData.pacientes;
+        mudou = true;
       }
-      if (Array.isArray(cloudData.consultas)) {
+      if (Array.isArray(cloudData.consultas) && cloudData.consultas.length > 0) {
         localStorage.setItem(KEYS.CONSULTAS, JSON.stringify(cloudData.consultas));
+        updatePayload.consultas = cloudData.consultas;
+        mudou = true;
       }
 
-      if (remoteTimestamp > 0) {
+      if (mudou) {
         localStorage.setItem(KEYS.LAST_UPDATE, remoteTimestamp.toString());
+        onUpdate(updatePayload);
       }
-
-      onUpdate(cloudData);
+      
       isSyncing = false;
       return true;
     }
   } catch (error) {
-    // Falha silenciosa se offline
+    // Falha silenciosa
   }
 
   isSyncing = false;
@@ -145,7 +184,7 @@ export function subscribeLocalBroadcast(onUpdate: (payload: CloudDataPayload) =>
   };
 }
 
-function getItemJSON(key: string, fallback: any) {
+export function getItemJSON(key: string, fallback: any) {
   try {
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : fallback;

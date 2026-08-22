@@ -43,6 +43,11 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
 
   const [sincronizando, setSincronizando] = useState<boolean>(false);
 
+  // Salvamento automático permanente em localStorage local
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(itens));
+  }, [itens]);
+
   // Função central para salvar localmente e enviar à nuvem sem sobregravar na carga inicial
   const updateItensECloud = (novosItens: ItemProducaoTomo[]) => {
     setItens(novosItens);
