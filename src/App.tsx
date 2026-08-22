@@ -329,9 +329,9 @@ export function App() {
         }}
       />
 
-      {/* Main Content Area */}
-      <div className={`transition-all duration-300 flex flex-col min-h-screen w-full max-w-full overflow-x-hidden ${
-        isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
+      {/* Main Content Area (Calculado perfeitamente para nao cortar nada na direita) */}
+      <div className={`transition-all duration-300 flex flex-col min-h-screen box-border overflow-x-hidden w-full ${
+        isSidebarCollapsed ? 'md:ml-20 md:w-[calc(100%-5rem)]' : 'md:ml-64 md:w-[calc(100%-16rem)]'
       }`}>
         {/* Header Superior */}
         <HeaderBar
@@ -346,8 +346,8 @@ export function App() {
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
-        {/* Dynamic Views (Configurado para 90% da tela conforme solicitado) */}
-        <main className="p-2 sm:p-4 flex-1 box-border mx-auto w-[90%] max-w-[90vw] transition-all">
+        {/* Dynamic Views */}
+        <main className="p-3 sm:p-6 flex-1 box-border w-full max-w-full transition-all">
           {activeTab === 'dashboard' && (
             <Dashboard
               consultas={consultas}
