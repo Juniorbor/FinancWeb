@@ -9,7 +9,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Stethoscope,
   LogOut,
   FileSpreadsheet,
   X
@@ -85,16 +84,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => handleItemClick('dashboard')}
             className="flex items-center gap-3 cursor-pointer overflow-hidden"
           >
-            <div className="bg-gradient-to-tr from-teal-600 to-cyan-500 p-2.5 rounded-2xl text-slate-950 font-bold shadow-lg shadow-teal-500/20 shrink-0">
-              <Stethoscope className="w-5 h-5 text-white" />
-            </div>
+            <img
+              src="/logo.jpg"
+              alt="OdontoWeb Logo"
+              className="w-11 h-11 object-contain rounded-full border-2 border-teal-500/40 shadow-md shadow-teal-500/20 shrink-0 bg-white p-0.5"
+            />
             {(!isCollapsed || isMobileOpen) && (
               <div className="transition-opacity duration-300">
                 <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
-                  Odonto<span className="text-teal-500">Web</span>
+                  Odonto<span className="text-teal-400">Web</span>
                 </span>
-                <span className="text-[10px] font-semibold text-slate-400 block -mt-1 uppercase tracking-wider">
-                  Gestão Odontológica
+                <span className="text-[9px] font-bold text-teal-400 block -mt-1 uppercase tracking-wider">
+                  Seu Portal de Saúde Bucal
                 </span>
               </div>
             )}

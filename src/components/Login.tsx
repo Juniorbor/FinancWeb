@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Stethoscope, Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: (usuario: { nome: string; email: string; funcao: string; cro: string }) => void;
@@ -38,15 +38,23 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
         
-        {/* Header do Login */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center bg-teal-500 p-3 rounded-2xl text-slate-950 font-bold shadow-lg shadow-teal-500/20">
-            <Stethoscope className="w-8 h-8 text-slate-950" />
+        {/* Header do Login com Logo Oficial */}
+        <div className="text-center space-y-3">
+          <div className="inline-flex items-center justify-center p-1 rounded-full bg-slate-800 border-2 border-teal-500/40 shadow-2xl shadow-teal-500/20">
+            <img
+              src="/logo.jpg"
+              alt="OdontoWeb - Seu Portal de Saúde Bucal"
+              className="w-24 h-24 object-contain rounded-full bg-white p-1"
+            />
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1">
-            Odonto<span className="text-teal-400">Web</span>
-          </h1>
-          <p className="text-sm text-slate-400">Sistema de Gestão & Atendimento Odontológico</p>
+          <div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1">
+              Odonto<span className="text-teal-400">Web</span>
+            </h1>
+            <p className="text-xs font-bold text-teal-400 uppercase tracking-widest mt-0.5">
+              Seu Portal de Saúde Bucal
+            </p>
+          </div>
         </div>
 
         {/* Card de Formulário */}
