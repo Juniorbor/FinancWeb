@@ -47,6 +47,7 @@ export function App() {
   // Tema Dark Mode
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   // Autenticação
   const [isAutenticado, setIsAutenticado] = useState<boolean>(false);
@@ -231,15 +232,18 @@ export function App() {
     <div className={`min-h-screen font-sans transition-colors duration-300 ${
       darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
-      {/* Sidebar Retrátil */}
+      {/* Sidebar Retrátil & Menu Mobile */}
       <Sidebar
         activeTab={activeTab === 'perfil_paciente' ? 'pacientes' : activeTab}
         onNavigate={(tab) => {
           setActiveTab(tab);
           setPacientePerfilSelecionado(null);
+          setIsMobileMenuOpen(false);
         }}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isMobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
         darkMode={darkMode}
         onLogout={handleLogout}
         badgeCounts={{
@@ -263,6 +267,7 @@ export function App() {
           pacientes={pacientes}
           consultas={consultas}
           onSelectPaciente={(p) => handleVerPerfilPaciente(p)}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
         {/* Dynamic Views */}

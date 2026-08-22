@@ -7,7 +7,8 @@ import {
   Plus,
   User,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Menu
 } from 'lucide-react';
 import type { Paciente, Consulta } from '../types';
 
@@ -25,6 +26,7 @@ interface HeaderBarProps {
   pacientes: Paciente[];
   consultas: Consulta[];
   onSelectPaciente: (paciente: Paciente) => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -35,7 +37,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onNavigate,
   pacientes,
   consultas: _consultas,
-  onSelectPaciente
+  onSelectPaciente,
+  onToggleMobileMenu
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
@@ -43,9 +46,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const [profileOpen, setProfileOpen] = useState<boolean>(false);
 
   const notificacoes = [
-    { id: 1, titulo: 'Nova Consulta Agendada', desc: 'Ana Clara confirmou para as 09:00', hora: 'Há 10 min' },
-    { id: 2, titulo: 'Resultado de Tomografia', desc: 'Raio-X Panorâmico de Roberto Alves disponível', hora: 'Há 45 min' },
-    { id: 3, titulo: 'Aviso de Estoque', desc: 'Insumo Resina Composta A2 abaixo do limite', hora: 'Há 2 horas' }
+    { id: 1, titulo: 'Nova Consulta Agendada', desc: 'Confirmado para as 09:00', hora: 'Há 10 min' },
+    { id: 2, titulo: 'Resultado de Tomografia', desc: 'Tomografia disponível na aba Produção', hora: 'Há 45 min' }
   ];
 
   const resultadosBusca = searchQuery.trim()
@@ -59,121 +61,136 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const iniciais = usuarioLogado?.nome
     ? usuarioLogado.nome.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
-    : 'OW';
+    : 'CJ';
 
   return (
     <header
-      className={`sticky top-0 z-20 h-16 border-b transition-colors backdrop-blur-md px-4 sm:px-6 flex items-center justify-between gap-4 ${
+      className={`sticky top-0 z-20 h-16 border-b transition-colors backdrop-blur-md px-3 sm:px-6 flex items-center justify-between gap-2.5 ${
         darkMode
           ? 'bg-slate-900/90 border-slate-800/80 text-white'
           : 'bg-white/90 border-slate-200/80 text-slate-800'
       }`}
     >
-      {/* Busca Global Inteligente */}
-      <div className="relative flex-1 max-w-md">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            placeholder="Busca global de pacientes, CPF ou prontuários (Pressione / para buscar)..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setSearchOpen(true);
-            }}
-            onFocus={() => setSearchOpen(true)}
-            className={`w-full pl-10 pr-4 py-2 text-xs sm:text-sm rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-              darkMode
-                ? 'bg-slate-800/80 border-slate-700 text-white placeholder-slate-500'
-                : 'bg-slate-100/80 border-slate-200 text-slate-800 placeholder-slate-400'
-            }`}
-          />
-        </div>
+      {/* Botão Menu Hamburger para Celulares (Android & iOS) + Busca Global */}
+      <div className="flex items-center gap-2 flex-1 max-w-md">
+        <button
+          onClick={onToggleMobileMenu}
+          className={`p-2 rounded-2xl border md:hidden flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+            darkMode
+              ? 'bg-slate-800 border-slate-700 text-teal-400 hover:bg-slate-700'
+              : 'bg-slate-100 border-slate-200 text-teal-600 hover:bg-slate-200'
+          }`}
+          aria-label="Abrir Menu de Navegação"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
 
-        {/* Dropdown de Resultados da Busca */}
-        {searchOpen && searchQuery.trim() && (
-          <div
-            className={`absolute left-0 top-full mt-2 w-full rounded-2xl border shadow-2xl overflow-hidden z-50 p-2 space-y-1 ${
-              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
-            }`}
-          >
-            <div className="text-[11px] font-bold text-slate-400 px-3 py-1 uppercase">Pacientes Encontrados</div>
-            {resultadosBusca.length > 0 ? (
-              resultadosBusca.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => {
-                    onSelectPaciente(p);
-                    onNavigate('pacientes');
-                    setSearchOpen(false);
-                    setSearchQuery('');
-                  }}
-                  className={`p-2.5 rounded-xl cursor-pointer transition-colors flex items-center justify-between ${
-                    darkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  <div>
-                    <p className="font-bold text-xs">{p.nome}</p>
-                    <p className="text-[11px] text-slate-400">CPF: {p.cpf} • Tel: {p.telefone}</p>
-                  </div>
-                  <span className="text-[10px] font-semibold bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-md">
-                    Ver Prontuário
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="p-3 text-xs text-slate-400 text-center">Nenhum paciente encontrado com termo de busca.</div>
-            )}
+        {/* Campo de Busca Inteligente */}
+        <div className="relative flex-1">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              placeholder="Buscar paciente, CPF..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSearchOpen(true);
+              }}
+              onFocus={() => setSearchOpen(true)}
+              className={`w-full pl-9 pr-3 py-2 text-xs rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                darkMode
+                  ? 'bg-slate-800/80 border-slate-700 text-white placeholder-slate-500'
+                  : 'bg-slate-100/80 border-slate-200 text-slate-800 placeholder-slate-400'
+              }`}
+            />
           </div>
-        )}
+
+          {/* Result Dropdown */}
+          {searchOpen && searchQuery.trim().length > 0 && (
+            <div
+              className={`absolute left-0 top-full mt-2 w-full max-w-md rounded-2xl border shadow-2xl p-2 z-50 space-y-1 max-h-64 overflow-y-auto ${
+                darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+              }`}
+            >
+              {resultadosBusca.length > 0 ? (
+                resultadosBusca.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      onSelectPaciente(p);
+                      setSearchOpen(false);
+                      setSearchQuery('');
+                    }}
+                    className={`p-2.5 rounded-xl cursor-pointer transition-colors flex items-center justify-between text-xs ${
+                      darkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+                    }`}
+                  >
+                    <div>
+                      <p className="font-bold text-slate-900 dark:text-white">{p.nome}</p>
+                      <p className="text-[10px] text-slate-400">CPF: {p.cpf} • Tel: {p.telefone}</p>
+                    </div>
+                    <span className="text-[10px] font-bold text-teal-500 bg-teal-500/10 px-2 py-0.5 rounded-md">
+                      Ver Prontuário
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="p-3 text-center text-xs text-slate-400">
+                  Nenhum paciente localizado para "{searchQuery}".
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Ações da Direita */}
       <div className="flex items-center gap-2 sm:gap-3">
-        
-        {/* Botão Novo Agendamento Rápido */}
-        <button
-          onClick={() => onNavigate('agenda')}
-          className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md shadow-teal-600/20 transition-all cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" /> Nova Consulta
-        </button>
-
-        {/* Toggle Dark / Light Mode */}
+        {/* Toggle Tema (Claro / Escuro) */}
         <button
           onClick={onToggleDarkMode}
-          className={`p-2.5 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-2 rounded-2xl border transition-all cursor-pointer ${
             darkMode
               ? 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700'
               : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
           }`}
-          title={darkMode ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
+          title={darkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
         >
           {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
-        {/* Notificações Bell */}
+        {/* Botão Novo Paciente Rápido (Oculto em telas super pequenas) */}
+        <button
+          onClick={() => onNavigate('pacientes')}
+          className="hidden sm:flex bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-bold px-3 py-2 rounded-2xl text-xs items-center gap-1.5 shadow-md shadow-teal-600/20 transition-all cursor-pointer shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>+ Paciente</span>
+        </button>
+
+        {/* Notificações */}
         <div className="relative">
           <button
             onClick={() => {
               setNotifOpen(!notifOpen);
               setProfileOpen(false);
             }}
-            className={`p-2.5 rounded-2xl border transition-all relative cursor-pointer ${
+            className={`p-2 rounded-2xl border transition-all cursor-pointer relative ${
               darkMode
                 ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
                 : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
             }`}
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-teal-500 animate-ping"></span>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-teal-500"></span>
+            {notificacoes.length > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-teal-500 rounded-full animate-pulse" />
+            )}
           </button>
 
-          {/* Menu de Notificações */}
           {notifOpen && (
             <div
-              className={`absolute right-0 top-full mt-3 w-80 rounded-2xl border shadow-2xl p-3 z-50 space-y-2 ${
+              className={`absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-2xl border shadow-2xl p-3 z-50 space-y-2 ${
                 darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
               }`}
             >
@@ -187,7 +204,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   <div
                     key={n.id}
                     className={`p-2.5 rounded-xl border text-xs space-y-1 transition-colors ${
-                      darkMode ? 'bg-slate-800/50 border-slate-800 hover:bg-slate-800' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
+                      darkMode ? 'bg-slate-800/50 border-slate-800' : 'bg-slate-50 border-slate-100'
                     }`}
                   >
                     <div className="flex justify-between font-bold">
@@ -209,13 +226,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               setProfileOpen(!profileOpen);
               setNotifOpen(false);
             }}
-            className={`flex items-center gap-2.5 p-1.5 sm:px-3 sm:py-1.5 rounded-2xl border transition-all cursor-pointer ${
+            className={`flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-2xl border transition-all cursor-pointer ${
               darkMode
                 ? 'bg-slate-800 border-slate-700 hover:bg-slate-700'
                 : 'bg-slate-100 border-slate-200 hover:bg-slate-200'
             }`}
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-cyan-500 flex items-center justify-center text-xs font-extrabold text-white shadow">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-cyan-500 flex items-center justify-center text-xs font-extrabold text-white shadow shrink-0">
               {iniciais}
             </div>
 
@@ -230,15 +247,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           {/* Menu Dropdown do Perfil */}
           {profileOpen && (
             <div
-              className={`absolute right-0 top-full mt-3 w-56 rounded-2xl border shadow-2xl p-2 z-50 space-y-1 ${
+              className={`absolute right-0 top-full mt-2 w-56 rounded-2xl border shadow-2xl p-2 z-50 space-y-1 ${
                 darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
               }`}
             >
               <div className="p-3 border-b border-slate-800/30 text-xs">
-                <p className="font-bold text-slate-900 dark:text-white">{usuarioLogado?.nome}</p>
-                <p className="text-[11px] text-slate-400">{usuarioLogado?.email}</p>
-                <span className="inline-block mt-1 text-[10px] font-semibold text-teal-500 bg-teal-50 dark:bg-teal-950 px-2 py-0.5 rounded-md">
-                  {usuarioLogado?.funcao}
+                <p className="font-bold text-slate-900 dark:text-white">{usuarioLogado?.nome || 'Crenilto Junior'}</p>
+                <p className="text-[11px] text-slate-400">{usuarioLogado?.email || 'juniorbor1986@gmail.com'}</p>
+                <span className="inline-block mt-1 text-[10px] font-semibold text-teal-500 bg-teal-500/10 px-2 py-0.5 rounded-md">
+                  {usuarioLogado?.funcao || 'Administrador / Cirurgião-Dentista'}
                 </span>
               </div>
 
@@ -258,12 +275,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 onClick={onLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
               >
-                <LogOut className="w-4 h-4" /> Sair do Sistema
+                <LogOut className="w-4 h-4" /> Sair da Conta
               </button>
             </div>
           )}
         </div>
-
       </div>
     </header>
   );

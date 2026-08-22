@@ -12,6 +12,30 @@ body {
 }
 
 /* ==========================================================================
+   OTIMIZAÇÃO PROFISSIONAL PARA CELULARES ANDROID E IOS
+   ========================================================================== */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+.overflow-x-auto, .overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+/* ==========================================================================
    CONFIGURAÇÃO PROFISSIONAL PARA IMPRESSÃO DE EXTRATO E RELATÓRIOS (PDF)
    Corrige cortes laterais, oculta menus/botões, ajusta margens A4 e cores claras.
    ========================================================================== */
