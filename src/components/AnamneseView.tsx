@@ -81,7 +81,7 @@ export const AnamneseView: React.FC<AnamneseViewProps> = ({
     habitosParafuncionais: initialAnamnese.habitosParafuncionais ?? ['Apertamento Dental Diurno'],
     frequenciaHigieneBucal: initialAnamnese.frequenciaHigieneBucal ?? '3x ao dia com Fio Dental',
     ultimoTratamentoOdontologico: initialAnamnese.ultimoTratamentoOdontologico ?? 'Há 6 meses',
-    dentistaResponsavel: initialAnamnese.dentistaResponsavel ?? 'Dra. Patricia Medeiros'
+    dentistaResponsavel: initialAnamnese.dentistaResponsavel ?? 'Dr. Crenilto Junior'
   });
 
   const [salvo, setSalvo] = useState<boolean>(false);

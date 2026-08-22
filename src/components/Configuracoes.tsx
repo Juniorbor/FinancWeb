@@ -19,7 +19,7 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
 }) => {
   const [salvo, setSalvo] = useState<boolean>(false);
   const [nomeClinica, setNomeClinica] = useState<string>('Consultório Odontológico OdontoWeb');
-  const [cro, setCro] = useState<string>(usuarioLogado?.cro || 'CRO-SP 123456');
+  const [cro, setCro] = useState<string>(usuarioLogado?.cro || 'CRO-RO 147369');
 
   const handleSalvar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +97,7 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
             <label className="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Nome do Cirurgião-Dentista</label>
             <input
               type="text"
-              defaultValue={usuarioLogado?.nome || 'Dra. Patricia Medeiros'}
+              defaultValue={usuarioLogado?.nome || 'Crenilto Junior'}
               className={`w-full p-3 rounded-xl border focus:ring-2 focus:ring-teal-500 focus:outline-none ${
                 darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
               }`}

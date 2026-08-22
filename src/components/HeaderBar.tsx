@@ -220,8 +220,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             </div>
 
             <div className="hidden md:block text-left">
-              <p className="text-xs font-bold leading-tight">{usuarioLogado?.nome || 'Dra. Patricia Medeiros'}</p>
-              <p className="text-[10px] text-teal-500 leading-none font-semibold">{usuarioLogado?.cro || 'CRO-SP 123456'}</p>
+              <p className="text-xs font-bold leading-tight">{usuarioLogado?.nome || 'Crenilto Junior'}</p>
+              <p className="text-[10px] text-teal-500 leading-none font-semibold">{usuarioLogado?.cro || 'CRO-RO 147369'}</p>
             </div>
 
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />

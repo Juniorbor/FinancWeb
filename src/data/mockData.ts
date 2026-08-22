@@ -46,7 +46,7 @@ export const mockMensagensIA: MensagemIA[] = [
   {
     id: 'msg-1',
     remetente: 'ia',
-    texto: 'Olá, Dra. Patricia! Sou a OdontoIA. O banco de dados foi limpo e está pronto para receber os novos cadastros do consultório. Como posso ajudar hoje?',
+    texto: 'Olá, Dr. Crenilto Junior! Sou a OdontoIA. O banco de dados foi limpo e está pronto para receber os novos cadastros do consultório. Como posso ajudar hoje?',
     dataHora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
 ];
