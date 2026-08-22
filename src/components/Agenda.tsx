@@ -200,9 +200,9 @@ export const Agenda: React.FC<AgendaProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full space-y-6">
       {/* 1. TOP HEADER & AGENDA CONTROLS ON-DOCTOR STYLE */}
-      <div className={`p-6 rounded-3xl border shadow-sm space-y-6 ${
+      <div className={`p-4 sm:p-6 lg:p-8 rounded-3xl border shadow-xl space-y-6 w-full ${
         darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
       }`}>
 
@@ -296,12 +296,12 @@ export const Agenda: React.FC<AgendaProps> = ({
           </div>
 
           {/* Filtros Rápidos (Dentista, Consultório, Status, Busca) */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
             {/* Filtro Dentista */}
             <select
               value={filtroDentista}
               onChange={(e) => setFiltroDentista(e.target.value)}
-              className={`p-2 rounded-xl border text-xs font-bold ${
+              className={`p-2.5 rounded-xl border text-xs font-bold flex-1 sm:flex-none min-w-[140px] ${
                 darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
               }`}
             >
@@ -314,7 +314,7 @@ export const Agenda: React.FC<AgendaProps> = ({
             <select
               value={filtroSala}
               onChange={(e) => setFiltroSala(e.target.value)}
-              className={`p-2 rounded-xl border text-xs font-bold ${
+              className={`p-2.5 rounded-xl border text-xs font-bold flex-1 sm:flex-none min-w-[130px] ${
                 darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
               }`}
             >
@@ -327,7 +327,7 @@ export const Agenda: React.FC<AgendaProps> = ({
             <select
               value={filtroStatus}
               onChange={(e) => setFiltroStatus(e.target.value)}
-              className={`p-2 rounded-xl border text-xs font-bold ${
+              className={`p-2.5 rounded-xl border text-xs font-bold flex-1 sm:flex-none min-w-[130px] ${
                 darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
               }`}
             >
@@ -340,14 +340,14 @@ export const Agenda: React.FC<AgendaProps> = ({
             </select>
 
             {/* Campo Busca */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+            <div className="relative flex-1 sm:w-64 min-w-[200px]">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
               <input
                 type="text"
                 placeholder="Buscar paciente ou procedimento..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                className={`pl-8 pr-3 py-2 rounded-xl border text-xs w-48 font-medium ${
+                className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-medium ${
                   darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
                 }`}
               />
@@ -413,17 +413,17 @@ export const Agenda: React.FC<AgendaProps> = ({
 
       {/* A) VISUALIZAÇÃO POR DIA (Grade Diária por Cadeira / Consultório) */}
       {visualizacao === 'dia' && (
-        <div className={`p-6 rounded-3xl border shadow-xl overflow-x-auto ${
+        <div className={`p-4 sm:p-6 lg:p-8 rounded-3xl border shadow-xl overflow-x-auto w-full ${
           darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
         }`}>
           
           {/* Header das Cadeiras / Consultórios */}
-          <div className="grid grid-cols-4 gap-4 min-w-[800px] border-b border-slate-800/60 pb-3 font-extrabold text-xs">
+          <div className="grid grid-cols-4 gap-4 min-w-[700px] w-full border-b border-slate-800/60 pb-3 font-extrabold text-xs">
             <div className="text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-teal-400" /> Horário
             </div>
             {['Consultório 1 (Maxila)', 'Consultório 2 (Implantes)', 'Consultório 3 (Ortodontia)'].map((salaNome, idx) => (
-              <div key={idx} className="bg-slate-950/60 p-2.5 rounded-2xl border border-slate-800 text-teal-400 flex items-center justify-between">
+              <div key={idx} className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800 text-teal-400 flex items-center justify-between font-bold">
                 <span>{salaNome}</span>
                 <span className="text-[10px] bg-teal-500/20 px-2 py-0.5 rounded-full text-teal-300">Livre</span>
               </div>
@@ -431,7 +431,7 @@ export const Agenda: React.FC<AgendaProps> = ({
           </div>
 
           {/* Slots Horários x Cadeiras */}
-          <div className="space-y-3 pt-3 min-w-[800px]">
+          <div className="space-y-3 pt-3 min-w-[700px] w-full">
             {HORARIOS_DIA.map((horaSlot) => {
               // Consultas que caem neste horário
               const consultasHora = consultasFiltradas.filter((c) => {
@@ -553,13 +553,12 @@ export const Agenda: React.FC<AgendaProps> = ({
 
       {/* B) VISUALIZAÇÃO POR SEMANA */}
       {visualizacao === 'semana' && (
-        <div className={`p-6 rounded-3xl border shadow-xl overflow-x-auto ${
+        <div className={`p-4 sm:p-6 lg:p-8 rounded-3xl border shadow-xl overflow-x-auto w-full ${
           darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
         }`}>
-          <div className="grid grid-cols-7 gap-3 min-w-[950px]">
+          <div className="grid grid-cols-7 gap-3 min-w-[850px] w-full">
             {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map((diaNome, idx) => {
               const consultasDoDia = consultas.filter((c) => {
-                // Simulação de distribuição pelos 7 dias da semana
                 const diaIdx = new Date(c.dataHora.split('T')[0]).getDay();
                 return diaIdx === (idx + 1) % 7;
               });
@@ -593,14 +592,14 @@ export const Agenda: React.FC<AgendaProps> = ({
 
       {/* C) VISUALIZAÇÃO POR MÊS */}
       {visualizacao === 'mes' && (
-        <div className={`p-6 rounded-3xl border shadow-xl ${
+        <div className={`p-4 sm:p-6 lg:p-8 rounded-3xl border shadow-xl w-full ${
           darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
         }`}>
           <div className="grid grid-cols-7 gap-2 text-center text-xs font-extrabold text-teal-400 mb-3">
             <span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span>
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-2.5">
             {Array.from({ length: 31 }, (_, i) => i + 1).map((diaNum) => {
               const dataStr = `2026-08-${diaNum < 10 ? '0' + diaNum : diaNum}`;
               const countDia = consultas.filter((c) => c.dataHora.split('T')[0] === dataStr).length;
@@ -613,7 +612,7 @@ export const Agenda: React.FC<AgendaProps> = ({
                     setDataSelecionada(dataStr);
                     setVisualizacao('dia');
                   }}
-                  className={`min-h-[70px] p-2 rounded-2xl border flex flex-col justify-between transition-all cursor-pointer ${
+                  className={`min-h-[85px] sm:min-h-[100px] p-2.5 rounded-2xl border flex flex-col justify-between transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-teal-600 text-white border-teal-400 ring-2 ring-teal-400'
                       : darkMode
@@ -623,7 +622,7 @@ export const Agenda: React.FC<AgendaProps> = ({
                 >
                   <span className="font-extrabold text-xs">{diaNum}</span>
                   {countDia > 0 && (
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
                       {countDia} agend.
                     </span>
                   )}
@@ -636,7 +635,7 @@ export const Agenda: React.FC<AgendaProps> = ({
 
       {/* D) VISUALIZAÇÃO EM LISTA / PRONTUÁRIO */}
       {visualizacao === 'lista' && (
-        <div className={`p-6 rounded-3xl border shadow-xl ${
+        <div className={`p-4 sm:p-6 lg:p-8 rounded-3xl border shadow-xl w-full ${
           darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
         }`}>
           <div className="overflow-x-auto">

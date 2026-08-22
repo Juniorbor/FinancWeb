@@ -347,7 +347,11 @@ export function App() {
         />
 
         {/* Dynamic Views */}
-        <main className="p-2 sm:p-6 lg:p-8 flex-1 max-w-7xl mx-auto w-full box-border">
+        <main className={`p-2 sm:p-4 lg:p-6 flex-1 w-full box-border mx-auto transition-all ${
+          activeTab === 'agenda' || activeTab === 'producao' || activeTab === 'financeiro'
+            ? 'max-w-full px-2 sm:px-4 lg:px-6'
+            : 'max-w-7xl'
+        }`}>
           {activeTab === 'dashboard' && (
             <Dashboard
               consultas={consultas}
