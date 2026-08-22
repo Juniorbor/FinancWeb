@@ -86,7 +86,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Logo Oficial OdontoWeb no Header */}
+        {/* Logo Oficial OdontoWeb no Header (Visível em Celulares e PC) */}
         <div
           onClick={() => onNavigate('dashboard')}
           className="flex items-center gap-2 cursor-pointer shrink-0"
@@ -94,9 +94,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <img
             src={LOGO_BASE64}
             alt="OdontoWeb Logo"
-            className="w-9 h-9 object-contain rounded-full border-2 border-teal-500/50 shadow-md shrink-0 bg-white p-0.5"
+            className="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-full border-2 border-teal-500/60 shadow-md shrink-0 bg-white p-0.5"
           />
-          <span className="font-extrabold text-base tracking-tight hidden sm:inline-block">
+          <span className="font-extrabold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white flex items-center">
             Odonto<span className="text-teal-400">Web</span>
           </span>
         </div>

@@ -16,6 +16,7 @@ import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { HeaderBar } from './components/HeaderBar';
 import { ToastContainer, type ToastMessage } from './components/Toast';
+import LOGO_BASE64 from './assets/logoData';
 
 import {
   mockConsultas,
@@ -532,10 +533,11 @@ export function App() {
         </main>
 
         {/* Footer */}
-        <footer className={`p-4 border-t text-center text-xs transition-colors ${
-          darkMode ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-white border-slate-200 text-slate-500'
+        <footer className={`p-4 border-t text-center text-xs transition-colors flex items-center justify-center gap-2 ${
+          darkMode ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
         }`}>
-          OdontoWeb Platform &copy; {new Date().getFullYear()} • Sistema de Gestão Odontológica SaaS 2026
+          <img src={LOGO_BASE64} alt="OdontoWeb Logo" className="w-5 h-5 object-contain rounded-full bg-white p-0.5 border border-teal-500/40 inline-block" />
+          <span>OdontoWeb Platform &copy; {new Date().getFullYear()} • Seu Portal de Saúde Bucal</span>
         </footer>
       </div>
 
