@@ -43,6 +43,8 @@ import type {
   MensagemIA
 } from './types';
 
+import { pushToCloud, pullFromCloud } from './services/cloudSync';
+
 export function App() {
   // Tema Dark Mode
   const [darkMode, setDarkMode] = useState<boolean>(true);
@@ -76,6 +78,33 @@ export function App() {
   const [fotografias, setFotografias] = useState<FotografiaClinica[]>(mockFotografias);
   const [timeline] = useState<HistoricoTimeline[]>(mockTimeline);
   const [mensagensIA, setMensagensIA] = useState<MensagemIA[]>(mockMensagensIA);
+
+  // Sincronização em nuvem entre dispositivos (celular e notebook)
+  useEffect(() => {
+    pushToCloud({ pacientes, consultas });
+  }, [pacientes, consultas]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      pullFromCloud((payload) => {
+        if (payload.pacientes) setPacientes(payload.pacientes);
+        if (payload.consultas) setConsultas(payload.consultas);
+      });
+    }, 3000);
+
+    const handleFocus = () => {
+      pullFromCloud((payload) => {
+        if (payload.pacientes) setPacientes(payload.pacientes);
+        if (payload.consultas) setConsultas(payload.consultas);
+      });
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   // Aplicar classe dark no HTML root
   useEffect(() => {

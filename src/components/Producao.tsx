@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ItemProducaoTomo } from '../types';
+import { pushToCloud, pullFromCloud } from '../services/cloudSync';
 import {
   BarChart3,
   Plus,
@@ -39,10 +40,34 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
     return []; // Vazio por padrão conforme solicitado
   });
 
-  // Salva no localStorage sempre que a lista de registros for alterada (adição ou exclusão)
+  // Sincronização em nuvem automática entre celular e notebook
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(itens));
+    pushToCloud({ producao: itens });
   }, [itens]);
+
+  // Polling em tempo real (a cada 3 segundos) para receber atualizações feitas em outro dispositivo
+  useEffect(() => {
+    const interval = setInterval(() => {
+      pullFromCloud((payload) => {
+        if (payload.producao) {
+          setItens(payload.producao);
+        }
+      });
+    }, 3000);
+
+    const handleFocus = () => {
+      pullFromCloud((payload) => {
+        if (payload.producao) setItens(payload.producao);
+      });
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   const [proprietarioFiltro, setProprietarioFiltro] = useState<'Todos' | 'Fernando' | 'Bernardo'>('Todos');
   const [unidadeFiltro, setUnidadeFiltro] = useState<string>('Todas');

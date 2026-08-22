@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TransacaoPessoal } from '../types';
+import { pushToCloud, pullFromCloud } from '../services/cloudSync';
 import {
   DollarSign,
   ArrowUpRight,
@@ -76,9 +77,34 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
     return TRANSACOES_INICIAIS;
   });
 
+  // Sincronização em nuvem automática entre celular e notebook
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(transacoes));
+    pushToCloud({ financeiro: transacoes });
   }, [transacoes]);
+
+  // Polling em tempo real (a cada 3 segundos) para receber atualizações feitas em outro dispositivo
+  useEffect(() => {
+    const interval = setInterval(() => {
+      pullFromCloud((payload) => {
+        if (payload.financeiro) {
+          setTransacoes(payload.financeiro);
+        }
+      });
+    }, 3000);
+
+    const handleFocus = () => {
+      pullFromCloud((payload) => {
+        if (payload.financeiro) setTransacoes(payload.financeiro);
+      });
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   const [filtroTipo, setFiltroTipo] = useState<string>('Todos');
   const [filtroCategoria, setFiltroCategoria] = useState<string>('Todas');
