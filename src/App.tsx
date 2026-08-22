@@ -1,0 +1,406 @@
+import { useState, useEffect } from 'react';
+import { Dashboard } from './components/Dashboard';
+import { Agenda } from './components/Agenda';
+import { Pacientes } from './components/Pacientes';
+import { PerfilPaciente } from './components/PerfilPaciente';
+import { AnamneseView } from './components/AnamneseView';
+import { Odontograma } from './components/Odontograma';
+import { RadiografiaViewer } from './components/RadiografiaViewer';
+import { FotografiasGaleria } from './components/FotografiasGaleria';
+import { Producao } from './components/Producao';
+import { AIAssistant } from './components/AIAssistant';
+import { Financeiro } from './components/Financeiro';
+import { Relatorios } from './components/Relatorios';
+import { Configuracoes } from './components/Configuracoes';
+import { Login } from './components/Login';
+import { Sidebar } from './components/Sidebar';
+import { HeaderBar } from './components/HeaderBar';
+import { ToastContainer, type ToastMessage } from './components/Toast';
+
+import {
+  mockConsultas,
+  mockPacientes,
+  mockTransacoes,
+  dentesIniciaisMock,
+  mockAnamneseDetalhada,
+  mockRadiografias,
+  mockFotografias,
+  mockTimeline,
+  mockMensagensIA
+} from './data/mockData';
+
+import type {
+  Consulta,
+  Paciente,
+  TransacaoFinanceira,
+  StatusConsulta,
+  StatusDente,
+  DenteInfo,
+  AnamneseDetalhada,
+  RadiografiaExame,
+  FotografiaClinica,
+  HistoricoTimeline,
+  MensagemIA
+} from './types';
+
+export function App() {
+  // Tema Dark Mode
+  const [darkMode, setDarkMode] = useState<boolean>(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+
+  // Autenticação
+  const [isAutenticado, setIsAutenticado] = useState<boolean>(false);
+  const [usuarioLogado, setUsuarioLogado] = useState<{
+    nome: string;
+    email: string;
+    funcao: string;
+    cro: string;
+  } | null>(null);
+
+  // Navegação
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [pacientePerfilSelecionado, setPacientePerfilSelecionado] = useState<Paciente | null>(null);
+
+  // Notificações Toast
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // States da aplicação (Inicia limpo/zerado para novos cadastros do usuário)
+  const [consultas, setConsultas] = useState<Consulta[]>(mockConsultas);
+  const [pacientes, setPacientes] = useState<Paciente[]>(mockPacientes);
+  const [transacoes] = useState<TransacaoFinanceira[]>(mockTransacoes);
+  const [dentes, setDentes] = useState<Record<number, DenteInfo>>(dentesIniciaisMock);
+  const [pacienteOdontograma, setPacienteOdontograma] = useState<Paciente | null>(null);
+  const [anamnese, setAnamnese] = useState<AnamneseDetalhada>(mockAnamneseDetalhada);
+  const [radiografias, setRadiografias] = useState<RadiografiaExame[]>(mockRadiografias);
+  const [fotografias, setFotografias] = useState<FotografiaClinica[]>(mockFotografias);
+  const [timeline] = useState<HistoricoTimeline[]>(mockTimeline);
+  const [mensagensIA, setMensagensIA] = useState<MensagemIA[]>(mockMensagensIA);
+
+  // Aplicar classe dark no HTML root
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  const addToast = (mensagem: string, tipo: 'sucesso' | 'erro' | 'info' = 'sucesso') => {
+    const id = `toast-${Date.now()}`;
+    setToasts((prev) => [...prev, { id, mensagem, tipo }]);
+  };
+
+  const handleDismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Handlers Login/Logout
+  const handleLoginSuccess = (usuario: { nome: string; email: string; funcao: string; cro: string }) => {
+    setUsuarioLogado(usuario);
+    setIsAutenticado(true);
+    addToast(`Bem-vindo(a) ao OdontoWeb! Banco zerado pronto para novos cadastros.`, 'sucesso');
+  };
+
+  const handleLogout = () => {
+    setIsAutenticado(false);
+    setUsuarioLogado(null);
+  };
+
+  // Handlers Consultas (Add, Edit, Delete)
+  const handleAddConsulta = (nova: Omit<Consulta, 'id'>) => {
+    const id = `con-${Date.now()}`;
+    setConsultas((prev) => [{ id, ...nova }, ...prev]);
+    addToast('Nova consulta agendada!', 'sucesso');
+  };
+
+  const handleEditConsulta = (consulta: Consulta) => {
+    setConsultas((prev) => prev.map((c) => (c.id === consulta.id ? consulta : c)));
+    addToast('Dados da consulta atualizados!', 'sucesso');
+  };
+
+  const handleDeleteConsulta = (id: string) => {
+    setConsultas((prev) => prev.filter((c) => c.id !== id));
+    addToast('Consulta removida da agenda com sucesso.', 'info');
+  };
+
+  const handleUpdateStatusConsulta = (id: string, novoStatus: StatusConsulta) => {
+    setConsultas((prev) => prev.map((c) => (c.id === id ? { ...c, status: novoStatus } : c)));
+    addToast(`Status da consulta alterado para ${novoStatus}.`, 'info');
+  };
+
+  // Handlers Pacientes (Add, Edit, Delete)
+  const handleAddPaciente = (novo: Omit<Paciente, 'id' | 'dataCadastro'>) => {
+    const id = `pac-${Date.now()}`;
+    const dataCadastro = new Date().toISOString().split('T')[0];
+    const pacienteCriado: Paciente = { id, dataCadastro, ...novo };
+    setPacientes((prev) => [pacienteCriado, ...prev]);
+    setPacienteOdontograma(pacienteCriado);
+    addToast(`Paciente ${novo.nome} cadastrado com sucesso!`, 'sucesso');
+  };
+
+  const handleEditPaciente = (paciente: Paciente) => {
+    setPacientes((prev) => prev.map((p) => (p.id === paciente.id ? paciente : p)));
+    if (pacientePerfilSelecionado?.id === paciente.id) {
+      setPacientePerfilSelecionado(paciente);
+    }
+    addToast(`Ficha do paciente ${paciente.nome} atualizada!`, 'sucesso');
+  };
+
+  const handleDeletePaciente = (id: string) => {
+    setPacientes((prev) => prev.filter((p) => p.id !== id));
+    if (pacientePerfilSelecionado?.id === id) {
+      setPacientePerfilSelecionado(null);
+      setActiveTab('pacientes');
+    }
+    addToast('Cadastro do paciente removido com sucesso.', 'info');
+  };
+
+  // Handlers Odontograma
+  const handleUpdateDente = (numero: number, status: StatusDente, observacoes?: string) => {
+    setDentes((prev) => ({
+      ...prev,
+      [numero]: { numero, status, observacoes }
+    }));
+    addToast(`Diagnóstico do dente ${numero} atualizado!`, 'sucesso');
+  };
+
+  // Handlers Radiografias (Add, Delete)
+  const handleAddRadiografia = (nova: Omit<RadiografiaExame, 'id'>) => {
+    const id = `rad-${Date.now()}`;
+    setRadiografias((prev) => [{ id, ...nova }, ...prev]);
+    addToast('Exame radiográfico adicionado ao prontuário!', 'sucesso');
+  };
+
+  const handleDeleteRadiografia = (id: string) => {
+    setRadiografias((prev) => prev.filter((r) => r.id !== id));
+    addToast('Exame radiográfico removido com sucesso.', 'info');
+  };
+
+  // Handlers Fotografias (Add, Delete)
+  const handleAddFotografia = (nova: Omit<FotografiaClinica, 'id'>) => {
+    const id = `foto-${Date.now()}`;
+    setFotografias((prev) => [{ id, ...nova }, ...prev]);
+    addToast('Fotografia clínica registrada na galeria!', 'sucesso');
+  };
+
+  const handleDeleteFotografia = (id: string) => {
+    setFotografias((prev) => prev.filter((f) => f.id !== id));
+    addToast('Fotografia clínica removida da galeria.', 'info');
+  };
+
+  const handleEnviarMensagemIA = (texto: string) => {
+    const userMsg: MensagemIA = {
+      id: `ia-${Date.now()}`,
+      remetente: 'usuario',
+      texto,
+      dataHora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMensagensIA((prev) => [...prev, userMsg]);
+
+    setTimeout(() => {
+      const respIA: MensagemIA = {
+        id: `ia-resp-${Date.now()}`,
+        remetente: 'ia',
+        texto: `Analisando seu pedido sobre: "${texto}". Com base nas diretrizes odontológicas atuais, recomenda-se proceder com anamnese completa antes de qualquer conduta cirúrgica ou restauradora.`,
+        dataHora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        sugestaoPlano: 'Conduta Profilática + Avaliação Periapical'
+      };
+      setMensagensIA((prev) => [...prev, respIA]);
+    }, 1000);
+  };
+
+  const handleVerPerfilPaciente = (paciente: Paciente) => {
+    setPacientePerfilSelecionado(paciente);
+    setActiveTab('perfil_paciente');
+  };
+
+  const handleAbrirOdontogramaPaciente = (paciente: Paciente) => {
+    setPacienteOdontograma(paciente);
+    setActiveTab('odontograma');
+  };
+
+  if (!isAutenticado) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  const consultasHoje = consultas.filter((c) => c.dataHora.startsWith('2026-08-21')).length;
+  const pendentesCount = transacoes.filter((t) => t.status === 'Pendente').length;
+
+  return (
+    <div className={`min-h-screen font-sans transition-colors duration-300 ${
+      darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+    }`}>
+      {/* Sidebar Retrátil */}
+      <Sidebar
+        activeTab={activeTab === 'perfil_paciente' ? 'pacientes' : activeTab}
+        onNavigate={(tab) => {
+          setActiveTab(tab);
+          setPacientePerfilSelecionado(null);
+        }}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        darkMode={darkMode}
+        onLogout={handleLogout}
+        badgeCounts={{
+          consultasHoje,
+          pacientes: pacientes.length,
+          pendentes: pendentesCount
+        }}
+      />
+
+      {/* Main Content Area */}
+      <div className={`transition-all duration-300 flex flex-col min-h-screen ${
+        isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
+      }`}>
+        {/* Header Superior */}
+        <HeaderBar
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode(!darkMode)}
+          usuarioLogado={usuarioLogado}
+          onLogout={handleLogout}
+          onNavigate={setActiveTab}
+          pacientes={pacientes}
+          consultas={consultas}
+          onSelectPaciente={(p) => handleVerPerfilPaciente(p)}
+        />
+
+        {/* Dynamic Views */}
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 max-w-7xl mx-auto w-full">
+          {activeTab === 'dashboard' && (
+            <Dashboard
+              consultas={consultas}
+              pacientes={pacientes}
+              transacoes={transacoes}
+              onNavigate={setActiveTab}
+              onNovaConsulta={() => setActiveTab('agenda')}
+              onNovoPaciente={() => setActiveTab('pacientes')}
+              darkMode={darkMode}
+            />
+          )}
+
+          {activeTab === 'pacientes' && (
+            <Pacientes
+              pacientes={pacientes}
+              onAddPaciente={handleAddPaciente}
+              onEditPaciente={handleEditPaciente}
+              onDeletePaciente={handleDeletePaciente}
+              onSelectPacienteParaOdontograma={handleAbrirOdontogramaPaciente}
+              onVerPerfilCompleto={handleVerPerfilPaciente}
+              darkMode={darkMode}
+            />
+          )}
+
+          {activeTab === 'perfil_paciente' && pacientePerfilSelecionado && (
+            <PerfilPaciente
+              paciente={pacientePerfilSelecionado}
+              consultas={consultas}
+              procedimentos={[]}
+              dentes={dentes}
+              onUpdateDente={handleUpdateDente}
+              anamnese={anamnese}
+              radiografias={radiografias}
+              fotografias={fotografias}
+              timeline={timeline}
+              onVoltar={() => setActiveTab('pacientes')}
+              onAddRadiografia={handleAddRadiografia}
+              onDeleteRadiografia={handleDeleteRadiografia}
+              onAddFotografia={handleAddFotografia}
+              onDeleteFotografia={handleDeleteFotografia}
+              darkMode={darkMode}
+            />
+          )}
+
+          {activeTab === 'agenda' && (
+            <Agenda
+              consultas={consultas}
+              pacientes={pacientes}
+              onAddConsulta={handleAddConsulta}
+              onEditConsulta={handleEditConsulta}
+              onDeleteConsulta={handleDeleteConsulta}
+              onUpdateStatus={handleUpdateStatusConsulta}
+              darkMode={darkMode}
+            />
+          )}
+
+          {activeTab === 'producao' && (
+            <Producao darkMode={darkMode} />
+          )}
+
+          {activeTab === 'odontograma' && (
+            <Odontograma
+              pacienteNome={pacienteOdontograma ? pacienteOdontograma.nome : undefined}
+              dentes={dentes}
+              onUpdateDente={handleUpdateDente}
+              darkMode={darkMode}
+            />
+          )}
+
+          {activeTab === 'anamnese' && (
+            <AnamneseView
+              anamnese={anamnese}
+              pacienteNome={pacienteOdontograma?.nome}
+              onSalvarAnamnese={setAnamnese}
+              darkMode={darkMode}
+            />
+          )}
+
+          {activeTab === 'radiografias' && (
+            <RadiografiaViewer
+              exames={radiografias}
+              pacienteNome={pacienteOdontograma?.nome}
+              onAddRadiografia={handleAddRadiografia}
+              onDeleteRadiografia={handleDeleteRadiografia}
+              darkMode={darkMode}
+            />
+          )}
+
+          {activeTab === 'fotografias' && (
+            <FotografiasGaleria
+              fotografias={fotografias}
+              pacienteNome={pacienteOdontograma?.nome}
+              onAddFotografia={handleAddFotografia}
+              onDeleteFotografia={handleDeleteFotografia}
+              darkMode={darkMode}
+            />
+          )}
+
+          {activeTab === 'ia' && (
+            <AIAssistant
+              mensagens={mensagensIA}
+              onEnviarMensagem={handleEnviarMensagemIA}
+              pacientes={pacientes}
+              darkMode={darkMode}
+            />
+          )}
+
+          {activeTab === 'financeiro' && (
+            <Financeiro darkMode={darkMode} />
+          )}
+
+          {activeTab === 'relatorios' && <Relatorios darkMode={darkMode} />}
+
+          {activeTab === 'configuracoes' && (
+            <Configuracoes
+              darkMode={darkMode}
+              onToggleDarkMode={() => setDarkMode(!darkMode)}
+              usuarioLogado={usuarioLogado}
+            />
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className={`p-4 border-t text-center text-xs transition-colors ${
+          darkMode ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-white border-slate-200 text-slate-500'
+        }`}>
+          OdontoWeb Platform &copy; {new Date().getFullYear()} • Sistema de Gestão Odontológica SaaS 2026
+        </footer>
+      </div>
+
+      {/* Container de Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={handleDismissToast} />
+    </div>
+  );
+}
+
+export default App;
