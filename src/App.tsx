@@ -254,7 +254,7 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <div className={`transition-all duration-300 flex flex-col min-h-screen ${
+      <div className={`transition-all duration-300 flex flex-col min-h-screen w-full max-w-full overflow-x-hidden ${
         isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
       }`}>
         {/* Header Superior */}
@@ -271,7 +271,7 @@ export function App() {
         />
 
         {/* Dynamic Views */}
-        <main className="p-4 sm:p-6 lg:p-8 flex-1 max-w-7xl mx-auto w-full">
+        <main className="p-2 sm:p-6 lg:p-8 flex-1 max-w-7xl mx-auto w-full box-border">
           {activeTab === 'dashboard' && (
             <Dashboard
               consultas={consultas}

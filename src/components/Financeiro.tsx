@@ -201,7 +201,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
     <div className="space-y-6">
       
       {/* 1. HEADER GESTÃO FINANCEIRA PESSOAL */}
-      <div className={`p-6 rounded-3xl border shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
+      <div className={`p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
         darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
       }`}>
         <div>
@@ -216,17 +216,17 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full md:w-auto">
           <button
             onClick={() => window.print()}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2.5 rounded-2xl text-xs flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer shadow"
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer shadow w-full sm:w-auto"
           >
             <Download className="w-4 h-4 text-teal-400" /> Exportar Extrato (PDF)
           </button>
 
           <button
             onClick={handleAbrirNovoModal}
-            className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-extrabold px-5 py-2.5 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-teal-600/25 transition-all cursor-pointer"
+            className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-extrabold px-5 py-2.5 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-600/25 transition-all cursor-pointer w-full sm:w-auto"
           >
             <Plus className="w-4.5 h-4.5" /> + Lançar Entrada ou Despesa do Lar
           </button>
