@@ -546,7 +546,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 font-extrabold uppercase">
+                <tr className="border-b border-slate-800 text-slate-400 font-extrabold uppercase whitespace-nowrap">
                   <th className="p-3">Data</th>
                   <th className="p-3">Descrição da Conta / Renda</th>
                   <th className="p-3">Tipo</th>
@@ -560,12 +560,12 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
                 {/* Linha de Faturamento da Produção Sincronizado Automático */}
                 {(filtroTipo === 'Todos' || filtroTipo === 'Entrada') && (
                   <tr className="bg-emerald-950/40 border-b border-emerald-800/50 font-semibold text-emerald-200 hover:bg-emerald-950/60 transition-colors">
-                    <td className="p-3 text-emerald-400 font-bold font-mono">HOJE</td>
+                    <td className="p-3 text-emerald-400 font-bold font-mono whitespace-nowrap">HOJE</td>
                     <td className="p-3">
                       <p className="font-extrabold text-white flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-amber-400" />
                         ⚡ Faturamento da Produção de Tomografias ({modoFaturamentoProducao})
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-extrabold uppercase">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-extrabold uppercase whitespace-nowrap">
                           Sincronizado
                         </span>
                       </p>
@@ -573,41 +573,41 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
                         Calculado automaticamente do Módulo de Produção ({producaoItens.length} exames cadastrados)
                       </span>
                     </td>
-                    <td className="p-3">
-                      <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                    <td className="p-3 whitespace-nowrap">
+                      <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-500/30 whitespace-nowrap inline-block">
                         Entrada
                       </span>
                     </td>
-                    <td className="p-3 text-xs text-slate-300 font-bold">Salário & Renda</td>
-                    <td className="p-3">
-                      <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold px-2 py-0.5 rounded border border-emerald-500/30">
+                    <td className="p-3 text-xs text-slate-300 font-bold whitespace-nowrap">Salário & Renda</td>
+                    <td className="p-3 whitespace-nowrap">
+                      <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold px-2 py-0.5 rounded border border-emerald-500/30 whitespace-nowrap inline-block">
                         ✓ Realizado
                       </span>
                     </td>
-                    <td className="p-3 font-extrabold text-emerald-400 text-sm">
+                    <td className="p-3 font-extrabold text-emerald-400 text-sm whitespace-nowrap">
                       + R$ {faturamentoProducaoAtivo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="p-3 text-right text-[10px] text-slate-400 font-mono">
+                    <td className="p-3 text-right text-[10px] text-slate-400 font-mono whitespace-nowrap">
                       Módulo Produção
                     </td>
                   </tr>
                 )}
                 {transacoesFiltradas.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-800/50 transition-colors">
-                    <td className="p-3 text-slate-400 font-bold">{t.data}</td>
+                    <td className="p-3 text-slate-400 font-bold whitespace-nowrap">{t.data}</td>
                     <td className="p-3">
                       <p className="font-bold text-white flex items-center gap-2">
                         {t.descricao}
                         {t.parcelas && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono whitespace-nowrap">
                             {t.parcelas}
                           </span>
                         )}
                       </p>
                       {t.observacao && <span className="text-[10px] text-slate-400">{t.observacao}</span>}
                     </td>
-                    <td className="p-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                    <td className="p-3 whitespace-nowrap">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border whitespace-nowrap inline-block ${
                         t.tipo === 'Entrada'
                           ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                           : t.tipo === 'Despesa Fixa'
