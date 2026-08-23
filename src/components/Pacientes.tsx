@@ -344,77 +344,81 @@ export const Pacientes: React.FC<PacientesProps> = ({
         )
       ) : (
         /* Conteúdo: Modo Tabela */
-        <div className={`rounded-3xl border shadow-sm overflow-hidden ${
+        <div className={`rounded-3xl border shadow-sm overflow-x-auto w-full ${
           darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
         }`}>
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left border-collapse text-xs min-w-[700px]">
             <thead>
-              <tr className="border-b border-slate-800/40 text-slate-400 uppercase font-bold">
-                <th className="py-3.5 px-4">Paciente</th>
-                <th className="py-3.5 px-4">CPF</th>
-                <th className="py-3.5 px-4">Telefone</th>
-                <th className="py-3.5 px-4">Convênio</th>
-                <th className="py-3.5 px-4 text-right">Ações</th>
+              <tr className="border-b border-slate-800/40 text-slate-400 uppercase font-bold text-[11px] tracking-wider">
+                <th className="py-4 px-4">Paciente</th>
+                <th className="py-4 px-4">CPF</th>
+                <th className="py-4 px-4">Telefone</th>
+                <th className="py-4 px-4">Convênio</th>
+                <th className="py-4 px-4 text-center">Prontuário</th>
+                <th className="py-4 px-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/30">
               {pacientesFiltrados.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3.5 px-4 font-bold flex items-center gap-3">
-                    {p.fotoUrl ? (
-                      <img src={p.fotoUrl} alt={p.nome} className="w-9 h-9 rounded-xl object-cover border border-teal-500/40 shadow-sm" />
-                    ) : (
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-600 to-teal-800 text-white flex items-center justify-center font-extrabold text-xs shadow-sm">
-                        {getIniciais(p.nome)}
+                  <td className="py-3.5 px-4 font-bold">
+                    <div className="flex items-center gap-3">
+                      {p.fotoUrl ? (
+                        <img src={p.fotoUrl} alt={p.nome} className="w-10 h-10 rounded-xl object-cover border border-teal-500/40 shadow-sm shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-600 to-teal-800 text-white flex items-center justify-center font-extrabold text-xs shadow-sm shrink-0">
+                          {getIniciais(p.nome)}
+                        </div>
+                      )}
+                      <div>
+                        <span
+                          onClick={() => onVerPerfilCompleto && onVerPerfilCompleto(p)}
+                          className="font-extrabold text-slate-900 dark:text-white hover:text-teal-400 cursor-pointer block text-xs sm:text-sm"
+                          title="Clique para abrir o prontuário completo"
+                        >
+                          {p.nome}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-normal">Nasc: {p.dataNascimento}</span>
                       </div>
-                    )}
-                    <div>
-                      <span
-                        onClick={() => onVerPerfilCompleto && onVerPerfilCompleto(p)}
-                        className="font-extrabold text-slate-900 dark:text-white hover:text-teal-400 cursor-pointer block text-xs sm:text-sm"
-                        title="Clique para abrir o prontuário completo"
-                      >
-                        {p.nome}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-normal">Nasc: {p.dataNascimento}</span>
                     </div>
                   </td>
-                  <td className="py-3.5 px-4 text-slate-400 font-medium">{p.cpf}</td>
-                  <td className="py-3.5 px-4 text-slate-400 font-medium">{p.telefone}</td>
-                  <td className="py-3.5 px-4">
+                  <td className="py-3.5 px-4 text-slate-400 font-medium whitespace-nowrap">{p.cpf}</td>
+                  <td className="py-3.5 px-4 text-slate-400 font-medium whitespace-nowrap">{p.telefone}</td>
+                  <td className="py-3.5 px-4 whitespace-nowrap">
                     <span className="bg-teal-500/20 text-teal-400 font-bold px-2.5 py-1 rounded-md border border-teal-500/30">
                       {p.convenio || 'Particular'}
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
+                  <td className="py-3.5 px-4 text-center whitespace-nowrap">
                     {onVerPerfilCompleto && (
                       <button
                         onClick={() => onVerPerfilCompleto(p)}
-                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs inline-flex items-center gap-1.5 cursor-pointer shadow-sm transition-all hover:border-teal-500/50"
+                        className="bg-teal-600 hover:bg-teal-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs inline-flex items-center gap-1.5 cursor-pointer shadow-md shadow-teal-600/20 transition-all"
                         title="Abrir Prontuário Completo do Paciente"
                       >
-                        <FileText className="w-3.5 h-3.5 text-teal-400" /> Abrir Prontuário
+                        <FileText className="w-4 h-4 text-white" /> Abrir Prontuário
                       </button>
                     )}
-
+                  </td>
+                  <td className="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
                     <button
                       onClick={() => onSelectPacienteParaOdontograma(p)}
-                      className="bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 font-bold px-3 py-1.5 rounded-xl text-xs inline-flex items-center gap-1 cursor-pointer transition-all"
+                      className="bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs inline-flex items-center gap-1 cursor-pointer transition-all"
                       title="Abrir Odontograma"
                     >
-                      <Sparkles className="w-3.5 h-3.5" /> Odontograma
+                      <Sparkles className="w-3.5 h-3.5 text-teal-400" /> Odontograma
                     </button>
 
                     <button
                       onClick={() => handleAbrirEditarModal(p)}
-                      className="text-slate-400 hover:text-teal-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center"
+                      className="text-slate-400 hover:text-teal-400 p-2 rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center"
                       title="Editar Ficha"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setPacienteExcluindoId(p.id)}
-                      className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center"
+                      className="text-slate-400 hover:text-rose-400 p-2 rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center"
                       title="Excluir Paciente"
                     >
                       <Trash2 className="w-4 h-4" />
