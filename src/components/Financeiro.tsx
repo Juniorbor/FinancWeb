@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import type { TransacaoPessoal } from '../types';
+import type { TransacaoPessoal, ItemProducaoTomo } from '../types';
 import { pushToCloud, pullFromCloud, subscribeLocalBroadcast } from '../services/cloudSync';
 import {
   DollarSign,
-  ArrowUpRight,
   Plus,
   Filter,
   Edit2,
@@ -16,7 +15,8 @@ import {
   X,
   Download,
   Wallet,
-  RefreshCw
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 
 interface FinanceiroProps {
@@ -92,6 +92,34 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
     pushToCloud({ financeiro: novas });
   };
 
+  // Estado para os registros do Módulo de Produção (Tomografia & Traçados)
+  const [producaoItens, setProducaoItens] = useState<ItemProducaoTomo[]>(() => {
+    const salvo = localStorage.getItem('odonto_producao_registros_v2');
+    if (salvo !== null) {
+      try {
+        return JSON.parse(salvo);
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  const [modoFaturamentoProducao, setModoFaturamentoProducao] = useState<'Unificado' | 'Fernando' | 'Bernardo'>('Unificado');
+
+  // Monitora registros do Módulo de Produção em tempo real no localStorage
+  useEffect(() => {
+    const carregarProducao = () => {
+      const salvo = localStorage.getItem('odonto_producao_registros_v2');
+      if (salvo !== null) {
+        try {
+          setProducaoItens(JSON.parse(salvo));
+        } catch (e) {}
+      }
+    };
+    carregarProducao();
+    const intervalProd = setInterval(carregarProducao, 1500);
+    return () => clearInterval(intervalProd);
+  }, []);
+
   // Carregamento e Polling em Tempo Real da Nuvem
   useEffect(() => {
     // 1. Busca imediata na nuvem ao abrir
@@ -99,6 +127,9 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
     pullFromCloud((payload) => {
       if (payload.financeiro) {
         setTransacoes(payload.financeiro);
+      }
+      if (payload.producao) {
+        setProducaoItens(payload.producao);
       }
       setSincronizando(false);
     }, true);
@@ -108,6 +139,9 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
       if (payload.financeiro) {
         setTransacoes(payload.financeiro);
       }
+      if (payload.producao) {
+        setProducaoItens(payload.producao);
+      }
     });
 
     // 3. Polling contínuo a cada 2 segundos
@@ -116,12 +150,16 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
         if (payload.financeiro) {
           setTransacoes(payload.financeiro);
         }
+        if (payload.producao) {
+          setProducaoItens(payload.producao);
+        }
       });
     }, 2000);
 
     const handleFocus = () => {
       pullFromCloud((payload) => {
         if (payload.financeiro) setTransacoes(payload.financeiro);
+        if (payload.producao) setProducaoItens(payload.producao);
       }, true);
     };
 
@@ -151,9 +189,24 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
   const [parcelas, setParcelas] = useState<string>('');
   const [observacao, setObservacao] = useState<string>('');
 
-  const totalEntradas = transacoes
+  // Cálculos dinâmicos baseados no Faturamento Total da Produção
+  const faturamentoTotalProducaoGeral = producaoItens.reduce((acc, i) => acc + i.valor, 0);
+  const faturamentoProducaoFernando = producaoItens.filter((i) => i.proprietario === 'Fernando').reduce((acc, i) => acc + i.valor, 0);
+  const faturamentoProducaoBernardo = producaoItens.filter((i) => i.proprietario === 'Bernardo').reduce((acc, i) => acc + i.valor, 0);
+
+  const faturamentoProducaoAtivo =
+    modoFaturamentoProducao === 'Fernando'
+      ? faturamentoProducaoFernando
+      : modoFaturamentoProducao === 'Bernardo'
+      ? faturamentoProducaoBernardo
+      : faturamentoTotalProducaoGeral;
+
+  const totalEntradasOutras = transacoes
     .filter((t) => t.tipo === 'Entrada')
     .reduce((acc, t) => acc + t.valor, 0);
+
+  // As Entradas / Salário do Financeiro são baseados no Faturamento Total Unificado da Produção + Outras Entradas
+  const totalEntradas = faturamentoProducaoAtivo + totalEntradasOutras;
 
   const totalDespesasFixas = transacoes
     .filter((t) => t.tipo === 'Despesa Fixa')
@@ -308,19 +361,52 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
       {/* 2. CARDS RESUMO DO ORÇAMENTO PESSOAL & DA CASA */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Total Entradas / Salário */}
-        <div className={`p-5 rounded-3xl border shadow-xl flex items-center justify-between ${
-          darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+        {/* Total Entradas / Salário (Baseado na Produção Unificada) */}
+        <div className={`p-5 rounded-3xl border shadow-xl flex flex-col justify-between space-y-3 ${
+          darkMode ? 'bg-slate-900 border-emerald-900/50 text-white' : 'bg-white border-emerald-200 text-slate-800'
         }`}>
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Entradas / Salário</span>
-            <h3 className="text-2xl font-extrabold text-emerald-400 mt-0.5">R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
-            <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 mt-1">
-              <ArrowUpRight className="w-3 h-3" /> Rendimento total no mês
-            </span>
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1 w-fit">
+                <Sparkles className="w-3 h-3 text-amber-400" /> Baseado na Produção
+              </span>
+              <h3 className="text-2xl font-extrabold text-emerald-400 mt-1">
+                R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </h3>
+            </div>
+            <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20 shrink-0">
+              <TrendingUp className="w-6 h-6" />
+            </div>
           </div>
-          <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20">
-            <TrendingUp className="w-6 h-6" />
+
+          <div className="pt-2 border-t border-slate-800/40 space-y-1 text-[11px]">
+            <div className="flex justify-between items-center text-slate-300 font-bold">
+              <span>Produção ({modoFaturamentoProducao}):</span>
+              <span className="text-emerald-400 font-extrabold">
+                R$ {faturamentoProducaoAtivo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            {/* Seletor do Filtro de Produção para o Salário */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[10px] font-bold text-slate-400">Base:</span>
+              <div className="flex items-center gap-1">
+                {(['Unificado', 'Fernando', 'Bernardo'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setModoFaturamentoProducao(m)}
+                    className={`px-2 py-0.5 text-[9px] font-extrabold rounded-lg transition-all cursor-pointer ${
+                      modoFaturamentoProducao === m
+                        ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-400'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {m === 'Unificado' ? 'Unificado' : m}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -471,6 +557,41 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/40 font-medium">
+                {/* Linha de Faturamento da Produção Sincronizado Automático */}
+                {(filtroTipo === 'Todos' || filtroTipo === 'Entrada') && (
+                  <tr className="bg-emerald-950/40 border-b border-emerald-800/50 font-semibold text-emerald-200 hover:bg-emerald-950/60 transition-colors">
+                    <td className="p-3 text-emerald-400 font-bold font-mono">HOJE</td>
+                    <td className="p-3">
+                      <p className="font-extrabold text-white flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        ⚡ Faturamento da Produção de Tomografias ({modoFaturamentoProducao})
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-extrabold uppercase">
+                          Sincronizado
+                        </span>
+                      </p>
+                      <span className="text-[10px] text-emerald-400 block mt-0.5">
+                        Calculado automaticamente do Módulo de Produção ({producaoItens.length} exames cadastrados)
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                        Entrada
+                      </span>
+                    </td>
+                    <td className="p-3 text-xs text-slate-300 font-bold">Salário & Renda</td>
+                    <td className="p-3">
+                      <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold px-2 py-0.5 rounded border border-emerald-500/30">
+                        ✓ Realizado
+                      </span>
+                    </td>
+                    <td className="p-3 font-extrabold text-emerald-400 text-sm">
+                      + R$ {faturamentoProducaoAtivo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3 text-right text-[10px] text-slate-400 font-mono">
+                      Módulo Produção
+                    </td>
+                  </tr>
+                )}
                 {transacoesFiltradas.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-800/50 transition-colors">
                     <td className="p-3 text-slate-400 font-bold">{t.data}</td>
