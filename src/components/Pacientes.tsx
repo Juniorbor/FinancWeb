@@ -42,7 +42,7 @@ export const Pacientes: React.FC<PacientesProps> = ({
   darkMode
 }) => {
   const [busca, setBusca] = useState<string>('');
-  const [modoVisualizacao, setModoVisualizacao] = useState<'cards' | 'tabela'>('cards');
+  const [modoVisualizacao, setModoVisualizacao] = useState<'cards' | 'tabela'>('tabela');
   const [modalAberto, setModalAberto] = useState<boolean>(false);
   const [cameraAberta, setCameraAberta] = useState<boolean>(false);
   const [pacienteEditando, setPacienteEditando] = useState<Paciente | null>(null);
@@ -360,43 +360,64 @@ export const Pacientes: React.FC<PacientesProps> = ({
             <tbody className="divide-y divide-slate-800/30">
               {pacientesFiltrados.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3.5 px-4 font-bold flex items-center gap-2">
+                  <td className="py-3.5 px-4 font-bold flex items-center gap-3">
                     {p.fotoUrl ? (
-                      <img src={p.fotoUrl} alt={p.nome} className="w-8 h-8 rounded-lg object-cover" />
+                      <img src={p.fotoUrl} alt={p.nome} className="w-9 h-9 rounded-xl object-cover border border-teal-500/40 shadow-sm" />
                     ) : (
-                      <div className="w-8 h-8 rounded-lg bg-teal-700 text-white flex items-center justify-center font-bold text-[11px]">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-600 to-teal-800 text-white flex items-center justify-center font-extrabold text-xs shadow-sm">
                         {getIniciais(p.nome)}
                       </div>
                     )}
-                    {p.nome}
+                    <div>
+                      <span
+                        onClick={() => onVerPerfilCompleto && onVerPerfilCompleto(p)}
+                        className="font-extrabold text-slate-900 dark:text-white hover:text-teal-400 cursor-pointer block text-xs sm:text-sm"
+                        title="Clique para abrir o prontuário completo"
+                      >
+                        {p.nome}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Nasc: {p.dataNascimento}</span>
+                    </div>
                   </td>
-                  <td className="py-3.5 px-4 text-slate-400">{p.cpf}</td>
-                  <td className="py-3.5 px-4 text-slate-400">{p.telefone}</td>
+                  <td className="py-3.5 px-4 text-slate-400 font-medium">{p.cpf}</td>
+                  <td className="py-3.5 px-4 text-slate-400 font-medium">{p.telefone}</td>
                   <td className="py-3.5 px-4">
-                    <span className="bg-teal-500/20 text-teal-400 font-bold px-2 py-0.5 rounded-md">
+                    <span className="bg-teal-500/20 text-teal-400 font-bold px-2.5 py-1 rounded-md border border-teal-500/30">
                       {p.convenio || 'Particular'}
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 text-right space-x-2">
+                  <td className="py-3.5 px-4 text-right space-x-2 whitespace-nowrap">
+                    {onVerPerfilCompleto && (
+                      <button
+                        onClick={() => onVerPerfilCompleto(p)}
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs inline-flex items-center gap-1.5 cursor-pointer shadow-sm transition-all hover:border-teal-500/50"
+                        title="Abrir Prontuário Completo do Paciente"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-teal-400" /> Abrir Prontuário
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => onSelectPacienteParaOdontograma(p)}
+                      className="bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 font-bold px-3 py-1.5 rounded-xl text-xs inline-flex items-center gap-1 cursor-pointer transition-all"
+                      title="Abrir Odontograma"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" /> Odontograma
+                    </button>
+
                     <button
                       onClick={() => handleAbrirEditarModal(p)}
-                      className="text-slate-400 hover:text-teal-400 p-1"
-                      title="Editar"
+                      className="text-slate-400 hover:text-teal-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center"
+                      title="Editar Ficha"
                     >
-                      <Edit2 className="w-4 h-4 inline" />
+                      <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setPacienteExcluindoId(p.id)}
-                      className="text-slate-400 hover:text-rose-400 p-1"
-                      title="Excluir"
+                      className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center"
+                      title="Excluir Paciente"
                     >
-                      <Trash2 className="w-4 h-4 inline" />
-                    </button>
-                    <button
-                      onClick={() => onSelectPacienteParaOdontograma(p)}
-                      className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1 rounded-lg text-[11px] ml-2"
-                    >
-                      Odontograma
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </td>
                 </tr>
