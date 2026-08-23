@@ -178,15 +178,64 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
     return () => window.removeEventListener('resize', updateSize);
   }, [exameSelecionado]);
 
+  // Carrega automaticamente os desenhos salvos quando o exame selecionado muda
+  useEffect(() => {
+    if (exameSelecionado?.id) {
+      let formasSalvas: FormaDesenho[] = exameSelecionado.formas || [];
+      let recortesSalvos: RecorteLupaCapturado[] = exameSelecionado.recortesLupa || [];
+
+      const localFormas = localStorage.getItem(`odonto_formas_${exameSelecionado.id}`);
+      if (localFormas) {
+        try {
+          const parsed = JSON.parse(localFormas);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            formasSalvas = parsed;
+          }
+        } catch (e) {}
+      }
+
+      const localRecortes = localStorage.getItem(`odonto_recortes_${exameSelecionado.id}`);
+      if (localRecortes) {
+        try {
+          const parsed = JSON.parse(localRecortes);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            recortesSalvos = parsed;
+          }
+        } catch (e) {}
+      }
+
+      setFormas(formasSalvas);
+      setRecortesLupa(recortesSalvos);
+      setFormaSelecionadaId(null);
+    }
+  }, [exameSelecionado?.id]);
+
+  // Persiste automaticamente no localStorage sempre que formas ou recortesLupa forem alterados
+  useEffect(() => {
+    if (exameSelecionado?.id) {
+      localStorage.setItem(`odonto_formas_${exameSelecionado.id}`, JSON.stringify(formas));
+      if (exameSelecionado) {
+        exameSelecionado.formas = formas;
+      }
+    }
+  }, [formas, exameSelecionado?.id]);
+
+  useEffect(() => {
+    if (exameSelecionado?.id) {
+      localStorage.setItem(`odonto_recortes_${exameSelecionado.id}`, JSON.stringify(recortesLupa));
+      if (exameSelecionado) {
+        exameSelecionado.recortesLupa = recortesLupa;
+      }
+    }
+  }, [recortesLupa, exameSelecionado?.id]);
+
   const handleResetFilters = () => {
     setZoom(1);
     setRotacao(0);
     setBrilho(100);
     setContraste(100);
-    setFormas([]);
     setPontosPontilhado([]);
     setRegiaoLupa(null);
-    setRecortesLupa([]);
     setFormaSelecionadaId(null);
   };
 
@@ -553,8 +602,27 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
   };
 
   const handleSalvarTudoRadiografia = () => {
+    if (exameSelecionado?.id) {
+      localStorage.setItem(`odonto_formas_${exameSelecionado.id}`, JSON.stringify(formas));
+      localStorage.setItem(`odonto_recortes_${exameSelecionado.id}`, JSON.stringify(recortesLupa));
+      exameSelecionado.formas = formas;
+      exameSelecionado.recortesLupa = recortesLupa;
+    }
     setSalvoSucesso(true);
     setTimeout(() => setSalvoSucesso(false), 3000);
+  };
+
+  const handleLimparTodosDesenhos = () => {
+    if (exameSelecionado?.id) {
+      localStorage.removeItem(`odonto_formas_${exameSelecionado.id}`);
+      localStorage.removeItem(`odonto_recortes_${exameSelecionado.id}`);
+      exameSelecionado.formas = [];
+      exameSelecionado.recortesLupa = [];
+    }
+    setFormas([]);
+    setPontosPontilhado([]);
+    setRecortesLupa([]);
+    setFormaSelecionadaId(null);
   };
 
   // Conversão de porcentagem para pixels reais para nitidez perfeita
@@ -1239,11 +1307,7 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
                 </span>
                 {(formas.length > 0 || pontosPontilhado.length > 0 || recortesLupa.length > 0) && (
                   <button
-                    onClick={() => {
-                      setFormas([]);
-                      setPontosPontilhado([]);
-                      setRecortesLupa([]);
-                    }}
+                    onClick={handleLimparTodosDesenhos}
                     className="text-rose-400 hover:text-rose-300 text-xs font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Limpar Todos

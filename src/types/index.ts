@@ -88,6 +88,8 @@ export interface RadiografiaExame {
   imagemUrl: string;
   anotacoes?: string;
   laudo?: string;
+  formas?: any[];
+  recortesLupa?: any[];
 }
 
 export interface FotografiaClinica {
