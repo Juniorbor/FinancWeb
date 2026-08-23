@@ -630,7 +630,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
                         {t.status === 'Pago' ? '✓ Pago' : '⏳ Pendente'}
                       </button>
                     </td>
-                    <td className={`p-3 font-extrabold text-sm ${
+                    <td className={`p-3 font-extrabold text-sm whitespace-nowrap ${
                       t.tipo === 'Entrada' ? 'text-emerald-400' : 'text-rose-400'
                     }`}>
                       {t.tipo === 'Entrada' ? '+' : '-'} R$ {t.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

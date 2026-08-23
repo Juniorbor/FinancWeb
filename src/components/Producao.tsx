@@ -820,7 +820,7 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
                         {item.regiao}
                       </span>
                     </td>
-                    <td className="p-3 font-extrabold text-emerald-400">R$ {item.valor.toFixed(2)}</td>
+                    <td className="p-3 font-extrabold text-emerald-400 whitespace-nowrap">R$ {item.valor.toFixed(2)}</td>
                     <td className="p-3 text-right">
                       <button
                         onClick={() => handleDeleteItem(item.id)}
