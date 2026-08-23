@@ -15,7 +15,8 @@ import {
   User,
   Users,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  PieChart
 } from 'lucide-react';
 
 interface ProducaoProps {
@@ -201,6 +202,79 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
     : proprietarioFiltro === 'Bernardo'
     ? ['Todas', ...CLINICAS_BERNARDO]
     : ['Todas', ...CLINICAS_FERNANDO, ...CLINICAS_BERNARDO];
+
+  // Percentuais por Proprietário para Gráficos
+  const pctFernando = valorTotalGeral > 0 ? Math.round((totalFernandoR$ / valorTotalGeral) * 100) : 0;
+  const pctBernardo = valorTotalGeral > 0 ? Math.round((totalBernardoR$ / valorTotalGeral) * 100) : 0;
+
+  // Contagem Geral e Percentuais para Gráfico por Região Tomográfica
+  const totalExamesFiltrados = itensFiltrados.length || 1;
+  const pctTracado = Math.round((countTracado / totalExamesFiltrados) * 100);
+  const pctUmDente = Math.round((countUmDente / totalExamesFiltrados) * 100);
+  const pctMaxOuMand = Math.round((countMaxOuMand / totalExamesFiltrados) * 100);
+  const pctMaxEMand = Math.round((countMaxEMand / totalExamesFiltrados) * 100);
+
+  // Dados para Gráfico de Barras por Clínica
+  const clinicasData = [
+    { nome: 'Ariquemes', valor: totalAriquemes, count: itensFernando.filter((i) => i.unidade === 'Ariquemes').length, cor: '#0EA5E9', owner: 'Fernando' },
+    { nome: 'Porto Velho', valor: totalPortoVelho, count: itensFernando.filter((i) => i.unidade === 'Porto Velho').length, cor: '#0EA5E9', owner: 'Fernando' },
+    { nome: 'Machadinho', valor: totalMachadinho, count: itensFernando.filter((i) => i.unidade === 'Machadinho').length, cor: '#0EA5E9', owner: 'Fernando' },
+    { nome: 'Cacoal', valor: totalCacoal, count: itensFernando.filter((i) => i.unidade === 'Cacoal').length, cor: '#0EA5E9', owner: 'Fernando' },
+    { nome: 'Rolim de Moura', valor: totalRolim, count: itensBernardo.filter((i) => i.unidade === 'Rolim de Moura').length, cor: '#6366F1', owner: 'Bernardo' },
+    { nome: 'Ouro Preto', valor: totalOuroPreto, count: itensBernardo.filter((i) => i.unidade === 'Ouro Preto').length, cor: '#6366F1', owner: 'Bernardo' },
+    { nome: 'Ji-Paraná', valor: totalJipa, count: itensBernardo.filter((i) => i.unidade === 'Ji-Paraná').length, cor: '#6366F1', owner: 'Bernardo' },
+  ].sort((a, b) => b.valor - a.valor);
+
+  const maxClinicaVal = Math.max(1, ...clinicasData.map((c) => c.valor));
+
+  // Helper de Renderização de Gráfico em Círculo (Donut SVG)
+  const renderDonutChart = (
+    slices: { label: string; value: number; color: string }[],
+    total: number,
+    centerTitle: string,
+    centerSub: string
+  ) => {
+    const R = 40;
+    const C = 2 * Math.PI * R; // ~251.327
+    let cumulativeOffset = 0;
+
+    return (
+      <div className="relative w-40 h-40 flex items-center justify-center shrink-0">
+        <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+          <circle cx="50" cy="50" r={R} fill="none" stroke={darkMode ? '#1E293B' : '#E2E8F0'} strokeWidth="12" />
+          {total > 0 &&
+            slices.map((slice, idx) => {
+              const pct = slice.value / total;
+              const dashLength = pct * C;
+              const strokeDasharray = `${dashLength} ${C - dashLength}`;
+              const strokeDashoffset = -cumulativeOffset;
+              cumulativeOffset += dashLength;
+
+              return (
+                <circle
+                  key={idx}
+                  cx="50"
+                  cy="50"
+                  r={R}
+                  fill="none"
+                  stroke={slice.color}
+                  strokeWidth="12"
+                  strokeDasharray={strokeDasharray}
+                  strokeDashoffset={strokeDashoffset}
+                  className="transition-all duration-500 hover:opacity-80 cursor-pointer"
+                >
+                  <title>{`${slice.label}: ${slice.value} (${total > 0 ? Math.round((slice.value / total) * 100) : 0}%)`}</title>
+                </circle>
+              );
+            })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-2">
+          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">{centerSub}</span>
+          <span className="text-sm font-black text-slate-900 dark:text-white leading-tight">{centerTitle}</span>
+        </div>
+      </div>
+    );
+  };
 
   const handleManualSync = async () => {
     setSincronizando(true);
@@ -458,6 +532,155 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
           </div>
 
         </div>
+      </div>
+
+      {/* 3.5 PAINEL DE GRÁFICOS ANALÍTICOS (GRÁFICOS EM CÍRCULOS E BARRAS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* CARD 1: GRÁFICOS EM CÍRCULOS (DONUT CHARTS) */}
+        <div className={`p-6 rounded-3xl border shadow-xl space-y-6 ${
+          darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+        }`}>
+          <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20">
+                Analytics Circular
+              </span>
+              <h3 className="text-lg font-extrabold flex items-center gap-2 mt-0.5 text-slate-900 dark:text-white">
+                <PieChart className="w-5 h-5 text-teal-400" /> Distribuição Financeira & Exames
+              </h3>
+            </div>
+            <span className="text-xs text-slate-400 font-bold">{itens.length} exames salvos</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+            
+            {/* GRÁFICO CIRCULAR 1: FERNANDO vs BERNARDO */}
+            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 flex flex-col items-center text-center space-y-3">
+              <span className="text-xs font-extrabold text-slate-300">Faturamento por Proprietário</span>
+              {renderDonutChart(
+                [
+                  { label: 'Fernando', value: totalFernandoR$, color: '#0EA5E9' },
+                  { label: 'Bernardo', value: totalBernardoR$, color: '#6366F1' }
+                ],
+                valorTotalGeral || 1,
+                `R$ ${valorTotalGeral.toLocaleString('pt-BR')}`,
+                'Total Geral'
+              )}
+              <div className="w-full space-y-1.5 text-xs">
+                <div className="flex justify-between items-center bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                  <span className="flex items-center gap-1.5 text-sky-400 font-extrabold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span> Fernando
+                  </span>
+                  <span className="font-extrabold text-white">R$ {totalFernandoR$.toLocaleString('pt-BR')} ({pctFernando}%)</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                  <span className="flex items-center gap-1.5 text-indigo-400 font-extrabold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Bernardo
+                  </span>
+                  <span className="font-extrabold text-white">R$ {totalBernardoR$.toLocaleString('pt-BR')} ({pctBernardo}%)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* GRÁFICO CIRCULAR 2: POR REGIÃO TOMOGRÁFICA */}
+            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 flex flex-col items-center text-center space-y-3">
+              <span className="text-xs font-extrabold text-slate-300">Exames por Região Tomográfica</span>
+              {renderDonutChart(
+                [
+                  { label: 'MAX OU MAND', value: countMaxOuMand, color: '#0EA5E9' },
+                  { label: 'MAX E MAND', value: countMaxEMand, color: '#10B981' },
+                  { label: 'UM DENTE', value: countUmDente, color: '#F59E0B' },
+                  { label: 'TRAÇADO', value: countTracado, color: '#EC4899' }
+                ],
+                itensFiltrados.length || 1,
+                `${itensFiltrados.length}`,
+                'Total Exames'
+              )}
+              <div className="w-full grid grid-cols-2 gap-1 text-[11px]">
+                <div className="bg-slate-900/60 p-1.5 rounded-lg border border-slate-800 text-left">
+                  <span className="flex items-center gap-1 text-sky-400 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-sky-500"></span> MAX/MAND
+                  </span>
+                  <span className="font-extrabold text-white block">{countMaxOuMand} ({pctMaxOuMand}%)</span>
+                </div>
+                <div className="bg-slate-900/60 p-1.5 rounded-lg border border-slate-800 text-left">
+                  <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span> MAX E MAND
+                  </span>
+                  <span className="font-extrabold text-white block">{countMaxEMand} ({pctMaxEMand}%)</span>
+                </div>
+                <div className="bg-slate-900/60 p-1.5 rounded-lg border border-slate-800 text-left">
+                  <span className="flex items-center gap-1 text-amber-400 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span> UM DENTE
+                  </span>
+                  <span className="font-extrabold text-white block">{countUmDente} ({pctUmDente}%)</span>
+                </div>
+                <div className="bg-slate-900/60 p-1.5 rounded-lg border border-slate-800 text-left">
+                  <span className="flex items-center gap-1 text-pink-400 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-pink-500"></span> TRAÇADO
+                  </span>
+                  <span className="font-extrabold text-white block">{countTracado} ({pctTracado}%)</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* CARD 2: GRÁFICOS EM BARRAS (BAR CHARTS) */}
+        <div className={`p-6 rounded-3xl border shadow-xl space-y-6 ${
+          darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+        }`}>
+          <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                Analytics em Barras
+              </span>
+              <h3 className="text-lg font-extrabold flex items-center gap-2 mt-0.5 text-slate-900 dark:text-white">
+                <BarChart3 className="w-5 h-5 text-emerald-400" /> Desempenho Financeiro por Clínica
+              </h3>
+            </div>
+            <span className="text-xs text-slate-400 font-bold">7 Unidades</span>
+          </div>
+
+          {/* GRÁFICO DE BARRAS HORIZONTAIS: PRODUÇÃO FINANCEIRA POR CLÍNICA */}
+          <div className="space-y-3">
+            <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Faturamento (R$) por Unidade</span>
+            <div className="space-y-2.5">
+              {clinicasData.map((c) => {
+                const barPct = maxClinicaVal > 0 ? (c.valor / maxClinicaVal) * 100 : 0;
+                return (
+                  <div key={c.nome} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="flex items-center gap-2 text-slate-200">
+                        <span className="font-extrabold">{c.nome}</span>
+                        <span className={`text-[9px] px-1.5 py-0.2 rounded font-extrabold ${
+                          c.owner === 'Fernando' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                        }`}>
+                          {c.owner}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-normal">({c.count} exames)</span>
+                      </span>
+                      <span className="text-emerald-400 font-extrabold">R$ {c.valor.toLocaleString('pt-BR')}</span>
+                    </div>
+                    <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${Math.max(3, barPct)}%`,
+                          backgroundColor: c.cor
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+
       </div>
 
       {/* 4. BARRA DE FILTROS (PROPRIETÁRIO, UNIDADE, REGIÃO, BUSCA) */}
