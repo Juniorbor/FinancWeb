@@ -1,0 +1,17 @@
+{
+  "alias": [
+    "odontoweb-app.vercel.app",
+    "odontoweb-oficial.vercel.app"
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate, max-age=0"
+        }
+      ]
+    }
+  ]
+}
