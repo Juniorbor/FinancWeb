@@ -136,6 +136,13 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
   // Pontos da Linha Pontilhada por Cliques Sequenciais
   const [pontosPontilhado, setPontosPontilhado] = useState<{ x: number; y: number }[]>([]);
 
+  // Estado de Seleção e Arraste Interativo de Elementos e Pontos
+  const [formaSelecionadaId, setFormaSelecionadaId] = useState<string | null>(null);
+  const [arrastandoFormaId, setArrastandoFormaId] = useState<string | null>(null);
+  const [arrastandoPontoIdx, setArrastandoPontoIdx] = useState<number | null>(null);
+  const [pontoInicialArraste, setPontoInicialArraste] = useState<{ x: number; y: number } | null>(null);
+  const [formaSnapshot, setFormaSnapshot] = useState<FormaDesenho | null>(null);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -180,6 +187,7 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
     setPontosPontilhado([]);
     setRegiaoLupa(null);
     setRecortesLupa([]);
+    setFormaSelecionadaId(null);
   };
 
   const handleDesfazerUltimo = () => {
@@ -190,8 +198,52 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
     }
   };
 
+  // Manipuladores para Seleção e Arraste de Elementos e Pontos de Controle
+  const handleMouseDownForma = (e: React.MouseEvent, forma: FormaDesenho) => {
+    e.stopPropagation();
+    const coords = getCoordinatesPercentage(e);
+    setFormaSelecionadaId(forma.id);
+
+    setArrastandoFormaId(forma.id);
+    setArrastandoPontoIdx(null);
+    setPontoInicialArraste(coords);
+    setFormaSnapshot(JSON.parse(JSON.stringify(forma)));
+  };
+
+  const handleMouseDownPonto = (e: React.MouseEvent, forma: FormaDesenho, pontoIndex: number) => {
+    e.stopPropagation();
+    const coords = getCoordinatesPercentage(e);
+    setFormaSelecionadaId(forma.id);
+
+    setArrastandoFormaId(forma.id);
+    setArrastandoPontoIdx(pontoIndex);
+    setPontoInicialArraste(coords);
+    setFormaSnapshot(JSON.parse(JSON.stringify(forma)));
+  };
+
+  const handleDeleteFormaSelecionada = () => {
+    if (formaSelecionadaId) {
+      setFormas((prev) => prev.filter((f) => f.id !== formaSelecionadaId));
+      setFormaSelecionadaId(null);
+    }
+  };
+
+  // Atalho de Teclado (Delete / Backspace) para remover o elemento selecionado
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && formaSelecionadaId) {
+        if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          handleDeleteFormaSelecionada();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [formaSelecionadaId]);
+
   // Cálculo de Coordenadas 100% Exato e Sem Desvio Relativo ao Corpo da Imagem
-  const getCoordinatesPercentage = (e: React.MouseEvent<HTMLElement>) => {
+  const getCoordinatesPercentage = (e: React.MouseEvent<any>) => {
     const target = imageRef.current || containerRef.current;
     if (!target) return { x: 50, y: 50 };
     const rect = target.getBoundingClientRect();
@@ -203,7 +255,11 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const coords = getCoordinatesPercentage(e);
 
-    // Se for ferramenta 'lupa', ao CLICAR na região da imagem, CAPTURA e SALVA a região ampliada!
+    // Se clicar no fundo sem acertar uma forma, limpa a seleção
+    if (!arrastandoFormaId) {
+      setFormaSelecionadaId(null);
+    }
+
     if (ferramenta === 'lupa') {
       const zoomAtual = regiaoLupa?.zoomLupa || 3.5;
       setRegiaoLupa({ x: coords.x, y: coords.y, zoomLupa: zoomAtual });
@@ -249,7 +305,93 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
     const coords = getCoordinatesPercentage(e);
     setCurrentPoint(coords);
 
-    // Se a ferramenta for Lupa e o usuário ainda não travou um clique, atualiza a pré-visualização ao vivo
+    // 1. Processa o arraste interativo de elementos ou pontos de linha pontilhada
+    if (arrastandoFormaId && pontoInicialArraste && formaSnapshot) {
+      const dx = coords.x - pontoInicialArraste.x;
+      const dy = coords.y - pontoInicialArraste.y;
+
+      setFormas((prevFormas) =>
+        prevFormas.map((f) => {
+          if (f.id !== arrastandoFormaId) return f;
+
+          // A. Arraste de um ponto de controle específico (ex: vértice de linha pontilhada)
+          if (arrastandoPontoIdx !== null) {
+            if (f.tipo === 'pontilhado' && f.pontos && f.pontos[arrastandoPontoIdx]) {
+              const novosPontos = f.pontos.map((pt, idx) => {
+                if (idx === arrastandoPontoIdx && formaSnapshot.pontos && formaSnapshot.pontos[idx]) {
+                  return {
+                    x: Math.max(0, Math.min(100, formaSnapshot.pontos[idx].x + dx)),
+                    y: Math.max(0, Math.min(100, formaSnapshot.pontos[idx].y + dy))
+                  };
+                }
+                return pt;
+              });
+
+              const minX = Math.min(...novosPontos.map((p) => p.x));
+              const minY = Math.min(...novosPontos.map((p) => p.y));
+              const maxX = Math.max(...novosPontos.map((p) => p.x));
+              const maxY = Math.max(...novosPontos.map((p) => p.y));
+
+              return {
+                ...f,
+                x1: minX,
+                y1: minY,
+                x2: maxX,
+                y2: maxY,
+                pontos: novosPontos
+              };
+            }
+
+            if (arrastandoPontoIdx === 0) {
+              const newX1 = Math.max(0, Math.min(100, formaSnapshot.x1 + dx));
+              const newY1 = Math.max(0, Math.min(100, formaSnapshot.y1 + dy));
+              let medidaMm = f.medidaMm;
+              if (f.tipo === 'medicao_implante') {
+                const distPercentage = Math.hypot(f.x2 - newX1, f.y2 - newY1);
+                medidaMm = `${Math.max(1.0, distPercentage * 0.45).toFixed(1)} mm`;
+              }
+              return { ...f, x1: newX1, y1: newY1, medidaMm };
+            }
+
+            if (arrastandoPontoIdx === 1) {
+              const newX2 = Math.max(0, Math.min(100, formaSnapshot.x2 + dx));
+              const newY2 = Math.max(0, Math.min(100, formaSnapshot.y2 + dy));
+              let medidaMm = f.medidaMm;
+              if (f.tipo === 'medicao_implante') {
+                const distPercentage = Math.hypot(newX2 - f.x1, newY2 - f.y1);
+                medidaMm = `${Math.max(1.0, distPercentage * 0.45).toFixed(1)} mm`;
+              }
+              return { ...f, x2: newX2, y2: newY2, medidaMm };
+            }
+          }
+
+          // B. Arraste do elemento inteiro (Mãozinha / Seleção)
+          const newX1 = Math.max(0, Math.min(100, formaSnapshot.x1 + dx));
+          const newY1 = Math.max(0, Math.min(100, formaSnapshot.y1 + dy));
+          const newX2 = Math.max(0, Math.min(100, formaSnapshot.x2 + dx));
+          const newY2 = Math.max(0, Math.min(100, formaSnapshot.y2 + dy));
+
+          let novosPontos = f.pontos;
+          if (f.tipo === 'pontilhado' && formaSnapshot.pontos) {
+            novosPontos = formaSnapshot.pontos.map((pt) => ({
+              x: Math.max(0, Math.min(100, pt.x + dx)),
+              y: Math.max(0, Math.min(100, pt.y + dy))
+            }));
+          }
+
+          return {
+            ...f,
+            x1: newX1,
+            y1: newY1,
+            x2: newX2,
+            y2: newY2,
+            pontos: novosPontos
+          };
+        })
+      );
+      return;
+    }
+
     if (ferramenta === 'lupa' && !regiaoLupa) {
       setRegiaoLupa({
         x: coords.x,
@@ -260,6 +402,14 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
   };
 
   const handleMouseUp = () => {
+    if (arrastandoFormaId) {
+      setArrastandoFormaId(null);
+      setArrastandoPontoIdx(null);
+      setPontoInicialArraste(null);
+      setFormaSnapshot(null);
+      return;
+    }
+
     if (ferramenta === 'pontilhado') return;
 
     if (!isDrawing || !startPoint || !currentPoint) {
@@ -299,6 +449,7 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
     };
 
     setFormas((prev) => [...prev, novaForma]);
+    setFormaSelecionadaId(novaForma.id);
     setIsDrawing(false);
     setStartPoint(null);
     setCurrentPoint(null);
@@ -334,6 +485,7 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
           pontos: pontosFiltrados
         };
         setFormas((prev) => [...prev, novaForma]);
+        setFormaSelecionadaId(novaForma.id);
       }
 
       setPontosPontilhado([]);
@@ -354,6 +506,7 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
         pontos: pontosPontilhado
       };
       setFormas((prev) => [...prev, novaForma]);
+      setFormaSelecionadaId(novaForma.id);
     }
     setPontosPontilhado([]);
   };
@@ -408,10 +561,11 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
   const pxX = (pct: number) => (pct * containerSize.width) / 100;
   const pxY = (pct: number) => (pct * containerSize.height) / 100;
 
-  // Helper de Renderização de Formas Geométricas em SVG
+  // Helper de Renderização de Formas Geométricas em SVG com Seleção e Alças Interativas
   const renderSvgForma = (forma: FormaDesenho, isPreview = false) => {
     const { id, tipo, x1, y1, x2, y2, cor, espessura, medidaMm, pontos } = forma;
     const strokeW = espessura || espessuraLinha || 2;
+    const isSelected = formaSelecionadaId === id;
 
     const x1Px = pxX(x1);
     const y1Px = pxY(y1);
@@ -424,20 +578,62 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
     const heightPx = Math.abs(y2Px - y1Px);
     const opacity = isPreview ? 0.6 : 1;
 
+    // Handlers para clique e arraste da forma
+    const formaEvents = !isPreview
+      ? {
+          onMouseDown: (e: React.MouseEvent) => handleMouseDownForma(e, forma),
+          className: 'pointer-events-auto cursor-grab active:cursor-grabbing hover:filter hover:brightness-125'
+        }
+      : {};
+
     if (tipo === 'retangulo') {
       return (
-        <rect
-          key={id}
-          x={minXPx}
-          y={minYPx}
-          width={widthPx}
-          height={heightPx}
-          fill={`${cor}20`}
-          stroke={cor}
-          strokeWidth={strokeW}
-          rx="4"
-          opacity={opacity}
-        />
+        <g key={id} opacity={opacity} {...formaEvents}>
+          <rect
+            x={minXPx}
+            y={minYPx}
+            width={widthPx}
+            height={heightPx}
+            fill={`${cor}20`}
+            stroke={cor}
+            strokeWidth={isSelected ? strokeW + 1.5 : strokeW}
+            rx="4"
+          />
+          {isSelected && !isPreview && (
+            <>
+              <rect
+                x={minXPx - 3}
+                y={minYPx - 3}
+                width={widthPx + 6}
+                height={heightPx + 6}
+                fill="none"
+                stroke="#06B6D4"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+              />
+              <circle
+                cx={x1Px}
+                cy={y1Px}
+                r="6"
+                fill="#0F172A"
+                stroke="#06B6D4"
+                strokeWidth="2"
+                className="pointer-events-auto cursor-nwse-resize hover:scale-125"
+                onMouseDown={(e) => handleMouseDownPonto(e, forma, 0)}
+              />
+              <circle
+                cx={x2Px}
+                cy={y2Px}
+                r="6"
+                fill="#0F172A"
+                stroke="#06B6D4"
+                strokeWidth="2"
+                className="pointer-events-auto cursor-nwse-resize hover:scale-125"
+                onMouseDown={(e) => handleMouseDownPonto(e, forma, 1)}
+              />
+            </>
+          )}
+        </g>
       );
     }
 
@@ -447,24 +643,58 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
       const rx = widthPx / 2;
       const ry = heightPx / 2;
       return (
-        <ellipse
-          key={id}
-          cx={cx}
-          cy={cy}
-          rx={rx}
-          ry={ry}
-          fill={`${cor}20`}
-          stroke={cor}
-          strokeWidth={strokeW}
-          opacity={opacity}
-        />
+        <g key={id} opacity={opacity} {...formaEvents}>
+          <ellipse
+            cx={cx}
+            cy={cy}
+            rx={rx}
+            ry={ry}
+            fill={`${cor}20`}
+            stroke={cor}
+            strokeWidth={isSelected ? strokeW + 1.5 : strokeW}
+          />
+          {isSelected && !isPreview && (
+            <>
+              <ellipse
+                cx={cx}
+                cy={cy}
+                rx={rx + 3}
+                ry={ry + 3}
+                fill="none"
+                stroke="#06B6D4"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+              />
+              <circle
+                cx={x1Px}
+                cy={y1Px}
+                r="6"
+                fill="#0F172A"
+                stroke="#06B6D4"
+                strokeWidth="2"
+                className="pointer-events-auto cursor-nwse-resize hover:scale-125"
+                onMouseDown={(e) => handleMouseDownPonto(e, forma, 0)}
+              />
+              <circle
+                cx={x2Px}
+                cy={y2Px}
+                r="6"
+                fill="#0F172A"
+                stroke="#06B6D4"
+                strokeWidth="2"
+                className="pointer-events-auto cursor-nwse-resize hover:scale-125"
+                onMouseDown={(e) => handleMouseDownPonto(e, forma, 1)}
+              />
+            </>
+          )}
+        </g>
       );
     }
 
     if (tipo === 'seta') {
       const markerId = `arrow-${cor.replace('#', '')}-${strokeW}`;
       return (
-        <g key={id} opacity={opacity}>
+        <g key={id} opacity={opacity} {...formaEvents}>
           <defs>
             <marker
               id={markerId}
@@ -484,9 +714,33 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
             x2={x2Px}
             y2={y2Px}
             stroke={cor}
-            strokeWidth={strokeW}
+            strokeWidth={isSelected ? strokeW + 1.5 : strokeW}
             markerEnd={`url(#${markerId})`}
           />
+          {isSelected && !isPreview && (
+            <>
+              <circle
+                cx={x1Px}
+                cy={y1Px}
+                r="6"
+                fill="#0F172A"
+                stroke="#06B6D4"
+                strokeWidth="2"
+                className="pointer-events-auto cursor-grab active:cursor-grabbing hover:scale-125"
+                onMouseDown={(e) => handleMouseDownPonto(e, forma, 0)}
+              />
+              <circle
+                cx={x2Px}
+                cy={y2Px}
+                r="6"
+                fill="#0F172A"
+                stroke="#06B6D4"
+                strokeWidth="2"
+                className="pointer-events-auto cursor-grab active:cursor-grabbing hover:scale-125"
+                onMouseDown={(e) => handleMouseDownPonto(e, forma, 1)}
+              />
+            </>
+          )}
         </g>
       );
     }
@@ -496,18 +750,43 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
       const midY = (y1Px + y2Px) / 2;
 
       return (
-        <g key={id} opacity={opacity}>
+        <g key={id} opacity={opacity} {...formaEvents}>
           <line
             x1={x1Px}
             y1={y1Px}
             x2={x2Px}
             y2={y2Px}
             stroke={cor}
-            strokeWidth={strokeW}
+            strokeWidth={isSelected ? strokeW + 1.5 : strokeW}
             strokeDasharray={`${strokeW * 2.5} ${strokeW * 1.5}`}
           />
-          <circle cx={x1Px} cy={y1Px} r={strokeW + 1} fill={cor} />
-          <circle cx={x2Px} cy={y2Px} r={strokeW + 1} fill={cor} />
+          <circle cx={x1Px} cy={y1Px} r={strokeW + 2} fill={cor} />
+          <circle cx={x2Px} cy={y2Px} r={strokeW + 2} fill={cor} />
+
+          {isSelected && !isPreview && (
+            <>
+              <circle
+                cx={x1Px}
+                cy={y1Px}
+                r="7"
+                fill="#0F172A"
+                stroke="#06B6D4"
+                strokeWidth="2"
+                className="pointer-events-auto cursor-grab active:cursor-grabbing hover:scale-125"
+                onMouseDown={(e) => handleMouseDownPonto(e, forma, 0)}
+              />
+              <circle
+                cx={x2Px}
+                cy={y2Px}
+                r="7"
+                fill="#0F172A"
+                stroke="#06B6D4"
+                strokeWidth="2"
+                className="pointer-events-auto cursor-grab active:cursor-grabbing hover:scale-125"
+                onMouseDown={(e) => handleMouseDownPonto(e, forma, 1)}
+              />
+            </>
+          )}
 
           {medidaMm && (
             <foreignObject
@@ -515,7 +794,7 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
               y={midY - 14}
               width="90"
               height="28"
-              className="overflow-visible"
+              className="overflow-visible pointer-events-none"
             >
               <div className="flex items-center justify-center">
                 <span
@@ -535,27 +814,76 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
       const pointsString = pontos.map((p) => `${pxX(p.x)},${pxY(p.y)}`).join(' ');
 
       return (
-        <g key={id} opacity={opacity}>
+        <g key={id} opacity={opacity} {...formaEvents}>
+          {/* Linha invisível mais larga para capturar facilmente o clique / toque */}
+          {!isPreview && (
+            <polyline
+              points={pointsString}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={Math.max(14, strokeW * 5)}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+
+          {/* Linha pontilhada visível */}
           <polyline
             points={pointsString}
             fill="none"
             stroke={cor}
-            strokeWidth={strokeW}
+            strokeWidth={isSelected ? strokeW + 1.5 : strokeW}
             strokeDasharray={`${strokeW * 3} ${strokeW * 2}`}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          {pontos.map((pt, pIdx) => (
-            <circle
-              key={pIdx}
-              cx={pxX(pt.x)}
-              cy={pxY(pt.y)}
-              r={Math.max(2, strokeW + 0.5)}
-              fill={cor}
-              stroke="#FFFFFF"
-              strokeWidth="1"
+
+          {/* Se estiver selecionado, desenha um contorno de foco piscante em volta */}
+          {isSelected && !isPreview && (
+            <polyline
+              points={pointsString}
+              fill="none"
+              stroke="#06B6D4"
+              strokeWidth={strokeW + 3}
+              strokeDasharray="4 4"
+              opacity="0.7"
             />
-          ))}
+          )}
+
+          {/* VÉRTICES / PONTOS DE CONTROLE DA LINHA PONTILHADA (CLIQUE E ARRASTE CADA PONTO PARA ALINHAR) */}
+          {pontos.map((pt, pIdx) => {
+            const cx = pxX(pt.x);
+            const cy = pxY(pt.y);
+            const isPointDragging = arrastandoFormaId === id && arrastandoPontoIdx === pIdx;
+
+            return (
+              <g key={pIdx} className="pointer-events-auto cursor-grab active:cursor-grabbing">
+                {/* Anel Externo ao Arrastar ou Focar */}
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={isPointDragging ? Math.max(10, strokeW + 6) : Math.max(7, strokeW + 3)}
+                  fill={isPointDragging ? '#06B6D4' : '#0F172A'}
+                  fillOpacity={isPointDragging ? 0.5 : 0.8}
+                  stroke={isSelected ? '#06B6D4' : cor}
+                  strokeWidth="1.5"
+                />
+                {/* Ponto Central de Controle */}
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={Math.max(4, strokeW + 1)}
+                  fill={isPointDragging ? '#06B6D4' : cor}
+                  stroke="#FFFFFF"
+                  strokeWidth="2"
+                  className="hover:scale-125 transition-transform"
+                  onMouseDown={(e) => handleMouseDownPonto(e, forma, pIdx)}
+                >
+                  <title>{`Ponto ${pIdx + 1} da linha pontilhada — Clique e arraste para alinhar!`}</title>
+                </circle>
+              </g>
+            );
+          })}
         </g>
       );
     }
@@ -884,6 +1212,22 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
                 >
                   <Check className="w-4 h-4" /> Concluir Linha Pontilhada
                 </button>
+              )}
+
+              {/* Barra Flutuante de Ação Rápida para o Elemento Selecionado */}
+              {formaSelecionadaId && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/95 backdrop-blur-md px-4 py-2 rounded-2xl border border-teal-500/50 text-xs font-bold text-white shadow-2xl flex items-center gap-3 z-30">
+                  <span className="text-teal-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-teal-400" /> Elemento Selecionado (Arraste para mover ou alinhar pontos)
+                  </span>
+                  <button
+                    onClick={handleDeleteFormaSelecionada}
+                    className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ml-2"
+                    title="Excluir este elemento desenhado (Atalho: Delete ou Backspace)"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Excluir Elemento
+                  </button>
+                </div>
               )}
             </div>
 
