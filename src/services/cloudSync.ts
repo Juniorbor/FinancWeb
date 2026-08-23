@@ -2,10 +2,15 @@
 // Garante persistência permanente de dados localmente e sincronização com a nuvem sem perdas
 
 const getCloudEndpoint = () => {
-  if (typeof window !== 'undefined' && window.location.hostname.includes('netlify.app')) {
-    return '/.netlify/functions/sync';
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname.includes('vercel.app')) {
+      return '/api/sync';
+    }
+    if (window.location.hostname.includes('netlify.app')) {
+      return '/.netlify/functions/sync';
+    }
   }
-  return 'https://odontoweb-app.netlify.app/.netlify/functions/sync';
+  return '/api/sync';
 };
 
 export interface CloudDataPayload {
