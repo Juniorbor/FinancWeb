@@ -158,25 +158,23 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
   // Notificação de Salvo
   const [salvoSucesso, setSalvoSucesso] = useState<boolean>(false);
 
-  // Atualiza as dimensões reais em pixels para renderização nítida
-  useEffect(() => {
-    const updateSize = () => {
-      if (imageRef.current) {
-        setContainerSize({
-          width: imageRef.current.clientWidth || 800,
-          height: imageRef.current.clientHeight || 520
-        });
-      } else if (containerRef.current) {
-        setContainerSize({
-          width: containerRef.current.clientWidth || 800,
-          height: containerRef.current.clientHeight || 520
-        });
+  // Atualiza as dimensões reais em pixels do elemento da imagem para ancoragem 100% perfeita dos desenhos
+  const updateImageSize = () => {
+    if (imageRef.current) {
+      const rect = imageRef.current.getBoundingClientRect();
+      const width = imageRef.current.clientWidth || rect.width || 800;
+      const height = imageRef.current.clientHeight || rect.height || 520;
+      if (width > 0 && height > 0) {
+        setContainerSize({ width, height });
       }
-    };
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, [exameSelecionado]);
+    }
+  };
+
+  useEffect(() => {
+    updateImageSize();
+    window.addEventListener('resize', updateImageSize);
+    return () => window.removeEventListener('resize', updateImageSize);
+  }, [exameSelecionado?.id]);
 
   // Carrega automaticamente os desenhos salvos quando o exame selecionado muda
   useEffect(() => {
@@ -291,11 +289,12 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [formaSelecionadaId]);
 
-  // Cálculo de Coordenadas 100% Exato e Sem Desvio Relativo ao Corpo da Imagem
+  // Cálculo de Coordenadas 100% Exato e Sem Desvio Relativo ao Corpo Físico da Imagem
   const getCoordinatesPercentage = (e: React.MouseEvent<any>) => {
-    const target = imageRef.current || containerRef.current;
+    const target = imageRef.current;
     if (!target) return { x: 50, y: 50 };
     const rect = target.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return { x: 50, y: 50 };
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
     return { x, y };
@@ -1191,22 +1190,35 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
                 ferramenta === 'selecionar' ? 'cursor-default' : 'cursor-crosshair'
               }`}
             >
-              {/* Wrapper Alinhado EXATAMENTE com os Limites do Corpo da Imagem */}
-              <div className="relative max-h-[540px] max-w-full flex items-center justify-center">
+              {/* Wrapper da Imagem + SVG com Transformação Unificada de Zoom e Rotação */}
+              <div
+                className="relative inline-block max-h-[540px] max-w-full"
+                style={{
+                  transform: `scale(${zoom}) rotate(${rotacao}deg)`,
+                  transformOrigin: 'center center',
+                  transition: isDrawing || arrastandoFormaId ? 'none' : 'transform 0.2s ease'
+                }}
+              >
                 <img
                   ref={imageRef}
                   src={exameSelecionado.imagemUrl}
                   alt={exameSelecionado.titulo}
+                  onLoad={updateImageSize}
                   style={{
-                    transform: `scale(${zoom}) rotate(${rotacao}deg)`,
                     filter: `brightness(${brilho}%) contrast(${contraste}%)`,
-                    transition: isDrawing ? 'none' : 'transform 0.2s ease, filter 0.2s ease'
+                    transition: 'filter 0.2s ease'
                   }}
-                  className="max-h-[540px] w-full object-contain pointer-events-none rounded-2xl"
+                  className="max-h-[540px] w-auto max-w-full object-contain block pointer-events-none rounded-2xl shadow-lg select-none"
                 />
 
-                {/* OVERLAY SVG DE DESENHOS GEOMÉTRICOS SOBRE A IMAGEM */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+                {/* OVERLAY SVG EXATAMENTE COINCIDENTE COM OS LIMITES DA IMAGEM */}
+                <svg
+                  style={{
+                    width: containerSize.width || '100%',
+                    height: containerSize.height || '100%'
+                  }}
+                  className="absolute inset-0 w-full h-full pointer-events-none z-10"
+                >
                   {formas.map((forma) => renderSvgForma(forma, false))}
 
                   {ferramenta === 'pontilhado' && pontosPontilhado.length > 0 && (
