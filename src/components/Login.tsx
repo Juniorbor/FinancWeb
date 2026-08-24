@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, Sparkles } from 'lucide-react';
 import LOGO_BASE64 from '../assets/logoData';
+import { Dental3DBackground } from './Dental3DBackground';
 
 interface LoginProps {
   onLoginSuccess: (usuario: { nome: string; email: string; funcao: string; cro: string }) => void;
@@ -36,16 +37,26 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-6">
+    <div className="relative min-h-screen bg-slate-950 flex items-center justify-center p-4 overflow-hidden select-none">
+      
+      {/* CENÁRIO 3D EM MOVIMENTO NO FUNDO DO LOGIN */}
+      <Dental3DBackground />
+
+      {/* CARD DE LOGIN EM CAMADA SUPERIOR DESTEQUE */}
+      <div className="relative z-10 max-w-md w-full space-y-6">
         
         {/* Header do Login com Logo Oficial */}
         <div className="text-center space-y-3">
-          <img
-            src={LOGO_BASE64}
-            alt="OdontoWeb - Seu Portal de Saúde Bucal"
-            className="w-28 h-28 object-contain rounded-full border-4 border-teal-500/50 shadow-2xl shadow-teal-500/30 bg-white p-1 mx-auto"
-          />
+          <div className="inline-block relative">
+            <img
+              src={LOGO_BASE64}
+              alt="OdontoWeb - Seu Portal de Saúde Bucal"
+              className="w-28 h-28 object-contain rounded-full border-4 border-teal-500/60 shadow-2xl shadow-teal-500/50 bg-white p-1 mx-auto hover:scale-105 transition-transform duration-300"
+            />
+            <span className="absolute -bottom-1 right-0 bg-teal-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full border border-teal-300 shadow flex items-center gap-0.5">
+              <Sparkles className="w-3 h-3" /> 3D ACTIVE
+            </span>
+          </div>
           <div>
             <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1">
               Odonto<span className="text-teal-400">Web</span>
