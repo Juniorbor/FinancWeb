@@ -159,6 +159,9 @@ export function App() {
   const handleLoginSuccess = (usuario: { nome: string; email: string; funcao: string; cro: string }) => {
     setUsuarioLogado(usuario);
     setIsAutenticado(true);
+    setActiveTab('dashboard');
+    setPacientePerfilSelecionado(null);
+    setPacienteOdontograma(null);
     localStorage.setItem(SESSION_KEY, JSON.stringify(usuario));
     addToast(`Bem-vindo(a) ao OdontoWeb!`, 'sucesso');
   };
@@ -166,6 +169,9 @@ export function App() {
   const handleLogout = () => {
     setIsAutenticado(false);
     setUsuarioLogado(null);
+    setActiveTab('dashboard');
+    setPacientePerfilSelecionado(null);
+    setPacienteOdontograma(null);
     localStorage.removeItem(SESSION_KEY);
   };
 
