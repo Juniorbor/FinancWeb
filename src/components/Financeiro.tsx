@@ -16,7 +16,9 @@ import {
   Download,
   Wallet,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  PieChart,
+  BarChart3
 } from 'lucide-react';
 
 interface FinanceiroProps {
@@ -219,6 +221,82 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
   const totalDespesasGerais = totalDespesasFixas + totalDespesasVariaveis;
   const saldoLiquidoPessoal = totalEntradas - totalDespesasGerais;
   const comprometimentoRenda = totalEntradas > 0 ? Math.round((totalDespesasGerais / totalEntradas) * 100) : 0;
+  // Percentuais de Comprometimento de Renda para Gráficos
+  const pctFixas = totalEntradas > 0 ? Math.round((totalDespesasFixas / totalEntradas) * 100) : 0;
+  const pctVariaveis = totalEntradas > 0 ? Math.round((totalDespesasVariaveis / totalEntradas) * 100) : 0;
+  const pctSaldo = totalEntradas > 0 ? Math.max(0, 100 - pctFixas - pctVariaveis) : 0;
+
+  // Gastos por Categoria Pessoal (Barras Horizontais)
+  const categoriasFinanceirasData = CATEGORIAS_PESSOAIS.map((cat) => {
+    const valorTotalCat = transacoes
+      .filter((t) => t.categoria === cat && t.tipo !== 'Entrada')
+      .reduce((acc, t) => acc + t.valor, 0);
+    const countCat = transacoes.filter((t) => t.categoria === cat && t.tipo !== 'Entrada').length;
+    return {
+      nome: cat,
+      valor: valorTotalCat,
+      count: countCat
+    };
+  })
+    .filter((c) => c.valor > 0)
+    .sort((a, b) => b.valor - a.valor);
+
+  const maxCategoriaVal = Math.max(1, ...categoriasFinanceirasData.map((c) => c.valor));
+
+  // Contagem de Contas Pagas vs Pendentes
+  const totalPagas = transacoes.filter((t) => t.status === 'Pago').length + 1; // +1 pela linha automatica da producao
+  const totalPendentes = transacoes.filter((t) => t.status === 'Pendente').length;
+  const totalContas = totalPagas + totalPendentes;
+  const pctPagas = totalContas > 0 ? Math.round((totalPagas / totalContas) * 100) : 100;
+
+  // Helper de Renderização de Gráfico em Círculo (Donut SVG) para o Financeiro
+  const renderDonutChartFinanceiro = (
+    slices: { label: string; value: number; color: string }[],
+    total: number,
+    centerTitle: string,
+    centerSub: string
+  ) => {
+    const R = 40;
+    const C = 2 * Math.PI * R; // ~251.327
+    let cumulativeOffset = 0;
+
+    return (
+      <div className="relative w-40 h-40 flex items-center justify-center shrink-0">
+        <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+          <circle cx="50" cy="50" r={R} fill="none" stroke={darkMode ? '#1E293B' : '#E2E8F0'} strokeWidth="12" />
+          {total > 0 &&
+            slices.map((slice, idx) => {
+              const pct = slice.value / total;
+              const dashLength = pct * C;
+              const strokeDasharray = `${dashLength} ${C - dashLength}`;
+              const strokeDashoffset = -cumulativeOffset;
+              cumulativeOffset += dashLength;
+
+              return (
+                <circle
+                  key={idx}
+                  cx="50"
+                  cy="50"
+                  r={R}
+                  fill="none"
+                  stroke={slice.color}
+                  strokeWidth="12"
+                  strokeDasharray={strokeDasharray}
+                  strokeDashoffset={strokeDashoffset}
+                  className="transition-all duration-500 hover:opacity-80 cursor-pointer"
+                >
+                  <title>{`${slice.label}: R$ ${slice.value.toLocaleString('pt-BR')} (${total > 0 ? Math.round((slice.value / total) * 100) : 0}%)`}</title>
+                </circle>
+              );
+            })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-2">
+          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">{centerSub}</span>
+          <span className="text-xs font-extrabold text-slate-900 dark:text-white leading-tight">{centerTitle}</span>
+        </div>
+      </div>
+    );
+  };
 
   const transacoesFiltradas = transacoes.filter((t) => {
     const atendeTipo = filtroTipo === 'Todos' || t.tipo === filtroTipo;
@@ -460,6 +538,142 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
           <div className="p-3 bg-teal-500/10 text-teal-400 rounded-2xl border border-teal-500/20">
             <Wallet className="w-6 h-6" />
           </div>
+        </div>
+
+      </div>
+
+      {/* 2.5 PAINEL DE GRÁFICOS ANALÍTICOS DO FINANCEIRO (CÍRCULOS E BARRAS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* CARD 1: GRÁFICOS EM CÍRCULOS (DONUT CHARTS) */}
+        <div className={`p-6 rounded-3xl border shadow-xl space-y-6 ${
+          darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+        }`}>
+          <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20">
+                Analytics Orçamentário
+              </span>
+              <h3 className="text-lg font-extrabold flex items-center gap-2 mt-0.5 text-slate-900 dark:text-white">
+                <PieChart className="w-5 h-5 text-teal-400" /> Distribuição de Entradas vs Gastos
+              </h3>
+            </div>
+            <span className="text-xs text-slate-400 font-bold">{transacoes.length + 1} lançamentos</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+            
+            {/* GRÁFICO CIRCULAR 1: COMPROMETIMENTO DA RENDA */}
+            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 flex flex-col items-center text-center space-y-3">
+              <span className="text-xs font-extrabold text-slate-300">Destino do Rendimento Total</span>
+              {renderDonutChartFinanceiro(
+                [
+                  { label: 'Despesas Fixas', value: totalDespesasFixas, color: '#38BDF8' },
+                  { label: 'Variáveis & Cartões', value: totalDespesasVariaveis, color: '#F43F5E' },
+                  { label: 'Saldo Livre', value: Math.max(0, saldoLiquidoPessoal), color: '#10B981' }
+                ],
+                totalEntradas || 1,
+                `R$ ${totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+                'Entradas Total'
+              )}
+              <div className="w-full space-y-1.5 text-xs">
+                <div className="flex justify-between items-center bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                  <span className="flex items-center gap-1.5 text-sky-400 font-extrabold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span> Contas Fixas
+                  </span>
+                  <span className="font-extrabold text-white">R$ {totalDespesasFixas.toLocaleString('pt-BR')} ({pctFixas}%)</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                  <span className="flex items-center gap-1.5 text-rose-400 font-extrabold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Cartões/Variáveis
+                  </span>
+                  <span className="font-extrabold text-white">R$ {totalDespesasVariaveis.toLocaleString('pt-BR')} ({pctVariaveis}%)</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-extrabold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Saldo Sobrando
+                  </span>
+                  <span className="font-extrabold text-white">R$ {Math.max(0, saldoLiquidoPessoal).toLocaleString('pt-BR')} ({pctSaldo}%)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* GRÁFICO CIRCULAR 2: PROPORÇÃO DE TIPOS DE CONTAS */}
+            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 flex flex-col items-center text-center space-y-3">
+              <span className="text-xs font-extrabold text-slate-300">Status dos Pagamentos do Mês</span>
+              {renderDonutChartFinanceiro(
+                [
+                  { label: 'Contas Pagas', value: totalPagas, color: '#10B981' },
+                  { label: 'Contas Pendentes', value: totalPendentes, color: '#F59E0B' }
+                ],
+                totalContas || 1,
+                `${pctPagas}%`,
+                'Liquidado'
+              )}
+              <div className="w-full space-y-1.5 text-xs">
+                <div className="flex justify-between items-center bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-extrabold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Contas Pagas
+                  </span>
+                  <span className="font-extrabold text-white">{totalPagas} contas ({pctPagas}%)</span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                  <span className="flex items-center gap-1.5 text-amber-400 font-extrabold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Pendentes
+                  </span>
+                  <span className="font-extrabold text-white">{totalPendentes} contas ({100 - pctPagas}%)</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* CARD 2: GRÁFICOS EM BARRAS (BAR CHARTS POR CATEGORIA DE GASTOS) */}
+        <div className={`p-6 rounded-3xl border shadow-xl space-y-6 ${
+          darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+        }`}>
+          <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                Analytics em Barras
+              </span>
+              <h3 className="text-lg font-extrabold flex items-center gap-2 mt-0.5 text-slate-900 dark:text-white">
+                <BarChart3 className="w-5 h-5 text-rose-400" /> Maiores Gastos por Categoria
+              </h3>
+            </div>
+            <span className="text-xs text-slate-400 font-bold">{categoriasFinanceirasData.length} categorias ativas</span>
+          </div>
+
+          {/* GRÁFICO DE BARRAS HORIZONTAIS: GASTOS POR CATEGORIA */}
+          <div className="space-y-3">
+            <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Ranking de Despesas (R$)</span>
+            <div className="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
+              {categoriasFinanceirasData.map((c) => {
+                const barPct = maxCategoriaVal > 0 ? (c.valor / maxCategoriaVal) * 100 : 0;
+                return (
+                  <div key={c.nome} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="flex items-center gap-2 text-slate-200">
+                        <span className="font-extrabold text-slate-300">{c.nome}</span>
+                        <span className="text-[10px] text-slate-400 font-normal">({c.count} conta{c.count > 1 ? 's' : ''})</span>
+                      </span>
+                      <span className="text-rose-400 font-extrabold">R$ {c.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-rose-500 to-amber-500 transition-all duration-700"
+                        style={{
+                          width: `${Math.max(4, barPct)}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
         </div>
 
       </div>
