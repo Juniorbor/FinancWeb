@@ -54,6 +54,15 @@ const HORARIOS_DIA = [
   '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
 ];
 
+// Helper para obter a data atual real em formato ISO YYYY-MM-DD
+const getHojeIso = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const Agenda: React.FC<AgendaProps> = ({
   consultas,
   pacientes,
@@ -63,7 +72,7 @@ export const Agenda: React.FC<AgendaProps> = ({
   onUpdateStatus,
   darkMode
 }) => {
-  const [dataSelecionada, setDataSelecionada] = useState<string>('2026-08-21');
+  const [dataSelecionada, setDataSelecionada] = useState<string>(getHojeIso());
   const [visualizacao, setVisualizacao] = useState<TipoVisualizacao>('dia');
   const [filtroDentista, setFiltroDentista] = useState<string>('Todos');
   const [filtroSala, setFiltroSala] = useState<string>('Todos');
@@ -86,19 +95,25 @@ export const Agenda: React.FC<AgendaProps> = ({
 
   // Navegação de Datas
   const handleDataAnterior = () => {
-    const d = new Date(dataSelecionada);
+    const d = new Date(dataSelecionada + 'T00:00:00');
     d.setDate(d.getDate() - 1);
-    setDataSelecionada(d.toISOString().split('T')[0]);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setDataSelecionada(`${year}-${month}-${day}`);
   };
 
   const handleProximaData = () => {
-    const d = new Date(dataSelecionada);
+    const d = new Date(dataSelecionada + 'T00:00:00');
     d.setDate(d.getDate() + 1);
-    setDataSelecionada(d.toISOString().split('T')[0]);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setDataSelecionada(`${year}-${month}-${day}`);
   };
 
   const handleHoje = () => {
-    setDataSelecionada('2026-08-21');
+    setDataSelecionada(getHojeIso());
   };
 
   // Filtro de Consultas
@@ -601,7 +616,8 @@ export const Agenda: React.FC<AgendaProps> = ({
 
           <div className="grid grid-cols-7 gap-2.5">
             {Array.from({ length: 31 }, (_, i) => i + 1).map((diaNum) => {
-              const dataStr = `2026-08-${diaNum < 10 ? '0' + diaNum : diaNum}`;
+              const prefixoAnoMes = dataSelecionada.substring(0, 7);
+              const dataStr = `${prefixoAnoMes}-${diaNum < 10 ? '0' + diaNum : diaNum}`;
               const countDia = consultas.filter((c) => c.dataHora.split('T')[0] === dataStr).length;
               const isSelected = dataSelecionada === dataStr;
 

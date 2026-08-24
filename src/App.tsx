@@ -343,7 +343,8 @@ export function App() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
-  const consultasHoje = consultas.filter((c) => c.dataHora.startsWith('2026-08-21')).length;
+  const hojeIso = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+  const consultasHoje = consultas.filter((c) => c.dataHora.startsWith(hojeIso)).length;
   const pendentesCount = transacoes.filter((t) => t.status === 'Pendente').length;
 
   return (
