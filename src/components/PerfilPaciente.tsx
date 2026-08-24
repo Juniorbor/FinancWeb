@@ -34,7 +34,9 @@ import {
   CheckCircle2,
   Trash2,
   BookOpen,
-  X
+  X,
+  Edit2,
+  RotateCcw
 } from 'lucide-react';
 
 interface PerfilPacienteProps {
@@ -138,6 +140,70 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('Todas');
   const [letraFiltro, setLetraFiltro] = useState<string>('Todas');
 
+  // Persistência dos Valores Customizados do Catálogo
+  const CATALOGO_PRECOS_KEY = 'odonto_catalogo_valores_custom_v1';
+  const [valoresCustom, setValoresCustom] = useState<Record<string, number>>(() => {
+    const salvo = localStorage.getItem(CATALOGO_PRECOS_KEY);
+    if (salvo) {
+      try {
+        return JSON.parse(salvo);
+      } catch (e) {
+        console.error('Erro ao restaurar valores do catálogo:', e);
+      }
+    }
+    return {};
+  });
+
+  const [itemEditandoValor, setItemEditandoValor] = useState<ProcedimentoCatalogo | null>(null);
+  const [novoValorCatalogoInput, setNovoValorCatalogoInput] = useState<string>('');
+
+  const getValorItemCatalogo = (item: ProcedimentoCatalogo) => {
+    return valoresCustom[item.id] !== undefined ? valoresCustom[item.id] : item.valorPadrao;
+  };
+
+  const handleSalvarValorCatalogo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!itemEditandoValor) return;
+    const valorNum = parseFloat(novoValorCatalogoInput.replace(',', '.'));
+    if (isNaN(valorNum) || valorNum < 0) return;
+
+    const novosValores = { ...valoresCustom, [itemEditandoValor.id]: valorNum };
+    setValoresCustom(novosValores);
+    localStorage.setItem(CATALOGO_PRECOS_KEY, JSON.stringify(novosValores));
+    setItemEditandoValor(null);
+  };
+
+  const handleResetValoresCatalogo = () => {
+    if (window.confirm('Deseja restaurar todos os valores sugeridos do catálogo para a tabela padrão original?')) {
+      setValoresCustom({});
+      localStorage.removeItem(CATALOGO_PRECOS_KEY);
+    }
+  };
+
+  const [modalProcAberto, setModalProcAberto] = useState<boolean>(false);
+  const [procNomeInput, setProcNomeInput] = useState<string>('');
+  const [denteNumInput, setDenteNumInput] = useState<string>('');
+  const [valorInput, setValorInput] = useState<number>(250);
+  const [statusInput, setStatusInput] = useState<'Planejado' | 'Em Andamento' | 'Concluído'>('Planejado');
+
+  const handleAdicionarProcedimentoCat = (item: ProcedimentoCatalogo) => {
+    setProcNomeInput(item.nome);
+    setValorInput(getValorItemCatalogo(item));
+    setModalProcAberto(true);
+  };
+
+  const abas = [
+    { id: 'visaogeral', label: 'Visão Geral', icon: User },
+    { id: 'tratamentos', label: 'Plano de Tratamentos', icon: Wrench },
+    { id: 'atendimento', label: 'Atendimentos', icon: Calendar },
+    { id: 'anamnese', label: 'Anamnese', icon: FileText },
+    { id: 'odontograma', label: 'Odontograma', icon: Sparkles },
+    { id: 'radiografias', label: 'Radiografias', icon: ImageIcon },
+    { id: 'fotografias', label: 'Fotografias', icon: Camera },
+    { id: 'historico', label: 'Linha do Tempo', icon: Clock }
+  ];
+
+  const consultasPaciente = consultas.filter((c) => c.pacienteId === paciente.id);
   // Lista de Categorias Únicas do Catálogo
   const categoriasDisponiveis = ['Todas', ...Array.from(new Set(CATALOGO_PROCEDIMENTOS_ODONTO.map((c) => c.categoria)))];
 
@@ -152,32 +218,6 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
     const atendeLetra = letraFiltro === 'Todas' || item.nome.charAt(0).toUpperCase() === letraFiltro;
     return atendeBusca && atendeCat && atendeLetra;
   });
-  const [modalProcAberto, setModalProcAberto] = useState<boolean>(false);
-  const [procNomeInput, setProcNomeInput] = useState<string>('');
-  const [denteNumInput, setDenteNumInput] = useState<string>('');
-  const [valorInput, setValorInput] = useState<number>(250);
-  const [statusInput, setStatusInput] = useState<'Planejado' | 'Em Andamento' | 'Concluído'>('Planejado');
-
-  const abas = [
-    { id: 'visaogeral', label: 'Visão Geral', icon: User },
-    { id: 'tratamentos', label: 'Plano de Tratamentos', icon: Wrench },
-    { id: 'atendimento', label: 'Atendimentos', icon: Calendar },
-    { id: 'anamnese', label: 'Anamnese', icon: FileText },
-    { id: 'odontograma', label: 'Odontograma', icon: Sparkles },
-    { id: 'radiografias', label: 'Radiografias', icon: ImageIcon },
-    { id: 'fotografias', label: 'Fotografias', icon: Camera },
-    { id: 'historico', label: 'Linha do Tempo', icon: Clock }
-  ];
-
-  const consultasPaciente = consultas.filter((c) => c.pacienteId === paciente.id);
-
-
-
-  const handleAdicionarProcedimentoCat = (item: ProcedimentoCatalogo) => {
-    setProcNomeInput(item.nome);
-    setValorInput(item.valorPadrao);
-    setModalProcAberto(true);
-  };
 
   const handleSalvarNovoProcedimento = (e: React.FormEvent) => {
     e.preventDefault();
@@ -506,7 +546,17 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
                   <p className="text-xs text-slate-400">Tabela de procedimentos padrão com valores e tempo estimado de execução.</p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                 <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                  {Object.keys(valoresCustom).length > 0 && (
+                    <button
+                      onClick={handleResetValoresCatalogo}
+                      className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title="Restaurar valores padrão originais"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-400" /> Restaurar Tabela Padrão
+                    </button>
+                  )}
+
                   {/* Seletor de Categoria */}
                   <select
                     value={categoriaFiltro}
@@ -572,6 +622,9 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
                     {catalogoFiltrado.length > 0 ? (
                       catalogoFiltrado.map((item, index) => {
                         const primeiraLetra = item.nome.charAt(0).toUpperCase();
+                        const valorAtivo = getValorItemCatalogo(item);
+                        const foiEditado = valoresCustom[item.id] !== undefined;
+
                         return (
                           <tr
                             key={item.id}
@@ -597,7 +650,24 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
                               ⏱ {item.duracaoMinutos} min
                             </td>
                             <td className="p-3 font-extrabold text-emerald-400 text-sm whitespace-nowrap">
-                              R$ {item.valorPadrao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              <div className="flex items-center gap-2">
+                                <span>R$ {valorAtivo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                {foiEditado && (
+                                  <span className="text-[9px] bg-teal-500/20 text-teal-300 px-1.5 py-0.5 rounded border border-teal-500/30 uppercase font-black">
+                                    Editado
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    setItemEditandoValor(item);
+                                    setNovoValorCatalogoInput(valorAtivo.toString());
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-teal-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                                  title="Editar Valor Sugerido deste Procedimento"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                             <td className="p-3 text-right whitespace-nowrap">
                               <button
@@ -791,6 +861,64 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
                   className="px-5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-extrabold rounded-xl shadow-lg shadow-teal-600/30 cursor-pointer"
                 >
                   Confirmar e Adicionar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL DE EDIÇÃO DO VALOR SUGERIDO NO CATÁLOGO */}
+      {itemEditandoValor && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className={`rounded-3xl p-6 max-w-md w-full shadow-2xl border space-y-4 ${
+            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+          }`}>
+            <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
+              <h3 className="text-sm font-extrabold flex items-center gap-2 text-teal-400">
+                <Edit2 className="w-4 h-4 text-teal-400" /> Editar Valor Sugerido do Catálogo
+              </h3>
+              <button onClick={() => setItemEditandoValor(null)} className="text-slate-400 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] uppercase font-bold text-teal-400 px-2 py-0.5 rounded bg-teal-500/10 border border-teal-500/20">
+                {itemEditandoValor.categoria}
+              </span>
+              <h4 className="font-extrabold text-sm text-white">{itemEditandoValor.nome}</h4>
+              <p className="text-xs text-slate-400">Valor padrão original: R$ {itemEditandoValor.valorPadrao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            </div>
+
+            <form onSubmit={handleSalvarValorCatalogo} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-400 mb-1">Novo Valor Sugerido (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={novoValorCatalogoInput}
+                  onChange={(e) => setNovoValorCatalogoInput(e.target.value)}
+                  required
+                  autoFocus
+                  className={`w-full p-3 rounded-xl border text-sm font-extrabold text-emerald-400 ${
+                    darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/40">
+                <button
+                  type="button"
+                  onClick={() => setItemEditandoValor(null)}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-bold cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-xl font-extrabold shadow cursor-pointer transition-all"
+                >
+                  Salvar Novo Valor
                 </button>
               </div>
             </form>
