@@ -136,8 +136,22 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
   // Filtro do Catálogo Alfabético
   const [buscaCatalogo, setBuscaCatalogo] = useState<string>('');
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('Todas');
+  const [letraFiltro, setLetraFiltro] = useState<string>('Todas');
 
-  // Modal Adicionar Procedimento
+  // Lista de Categorias Únicas do Catálogo
+  const categoriasDisponiveis = ['Todas', ...Array.from(new Set(CATALOGO_PROCEDIMENTOS_ODONTO.map((c) => c.categoria)))];
+
+  // Lista de Letras Únicas para Filtro Alfabético
+  const letrasDisponiveis = ['Todas', ...Array.from(new Set(CATALOGO_PROCEDIMENTOS_ODONTO.map((c) => c.nome.charAt(0).toUpperCase()))).sort()];
+
+  // Catálogo Filtrado Alfabeticamente
+  const catalogoFiltrado = CATALOGO_PROCEDIMENTOS_ODONTO.filter((item) => {
+    const atendeBusca = item.nome.toLowerCase().includes(buscaCatalogo.toLowerCase()) ||
+      item.categoria.toLowerCase().includes(buscaCatalogo.toLowerCase());
+    const atendeCat = categoriaFiltro === 'Todas' || item.categoria === categoriaFiltro;
+    const atendeLetra = letraFiltro === 'Todas' || item.nome.charAt(0).toUpperCase() === letraFiltro;
+    return atendeBusca && atendeCat && atendeLetra;
+  });
   const [modalProcAberto, setModalProcAberto] = useState<boolean>(false);
   const [procNomeInput, setProcNomeInput] = useState<string>('');
   const [denteNumInput, setDenteNumInput] = useState<string>('');
@@ -157,16 +171,7 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
 
   const consultasPaciente = consultas.filter((c) => c.pacienteId === paciente.id);
 
-  // Lista de Categorias Únicas do Catálogo
-  const categoriasDisponiveis = ['Todas', ...Array.from(new Set(CATALOGO_PROCEDIMENTOS_ODONTO.map((c) => c.categoria)))];
 
-  // Catálogo Filtrado
-  const catalogoFiltrado = CATALOGO_PROCEDIMENTOS_ODONTO.filter((item) => {
-    const atendeBusca = item.nome.toLowerCase().includes(buscaCatalogo.toLowerCase()) ||
-      item.categoria.toLowerCase().includes(buscaCatalogo.toLowerCase());
-    const atendeCat = categoriaFiltro === 'Todas' || item.categoria === categoriaFiltro;
-    return atendeBusca && atendeCat;
-  });
 
   const handleAdicionarProcedimentoCat = (item: ProcedimentoCatalogo) => {
     setProcNomeInput(item.nome);
@@ -531,47 +536,89 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
                 </div>
               </div>
 
-              {/* Lista Alfabética do Catálogo em Grade */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[550px] overflow-y-auto pr-1 scrollbar-thin">
-                {catalogoFiltrado.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`p-4 rounded-2xl border transition-all shadow-sm flex flex-col justify-between hover:border-teal-500/50 ${
-                      darkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+              {/* Barra de Filtros por Letra Inicial (A-Z) */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+                <span className="text-[11px] font-bold text-slate-400 shrink-0 mr-1">Índice A-Z:</span>
+                {letrasDisponiveis.map((letra) => (
+                  <button
+                    key={letra}
+                    onClick={() => setLetraFiltro(letra)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-extrabold transition-all cursor-pointer shrink-0 ${
+                      letraFiltro === letra
+                        ? 'bg-teal-600 text-white shadow-md ring-1 ring-teal-400'
+                        : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
                     }`}
                   >
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                          {item.categoria}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400">
-                          ⏱ {item.duracaoMinutos} min
-                        </span>
-                      </div>
-
-                      <h4 className="font-extrabold text-xs text-white line-clamp-2">
-                        {item.nome}
-                      </h4>
-                    </div>
-
-                    <div className="pt-3 mt-3 border-t border-slate-800/40 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Valor Sugerido:</span>
-                        <span className="font-extrabold text-sm text-emerald-400">
-                          R$ {item.valorPadrao.toLocaleString('pt-BR')}
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={() => handleAdicionarProcedimentoCat(item)}
-                        className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 shadow cursor-pointer transition-all"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Adicionar
-                      </button>
-                    </div>
-                  </div>
+                    {letra}
+                  </button>
                 ))}
+              </div>
+
+              {/* Tabela / Lista em Ordem Alfabética Organizada */}
+              <div className="overflow-x-auto rounded-2xl border border-slate-800/60 max-h-[550px]">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-slate-950 text-slate-400 font-extrabold uppercase border-b border-slate-800 z-10 whitespace-nowrap">
+                    <tr>
+                      <th className="p-3 w-12 text-center">#</th>
+                      <th className="p-3 w-12 text-center">Letra</th>
+                      <th className="p-3">Procedimento Odontológico (Ordem Alfabética A-Z)</th>
+                      <th className="p-3">Especialidade / Categoria</th>
+                      <th className="p-3 text-center">Duração</th>
+                      <th className="p-3">Valor Sugerido (R$)</th>
+                      <th className="p-3 text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/40 font-medium">
+                    {catalogoFiltrado.length > 0 ? (
+                      catalogoFiltrado.map((item, index) => {
+                        const primeiraLetra = item.nome.charAt(0).toUpperCase();
+                        return (
+                          <tr
+                            key={item.id}
+                            className="hover:bg-slate-800/50 transition-colors group"
+                          >
+                            <td className="p-3 text-center font-mono text-slate-500 font-extrabold whitespace-nowrap">
+                              {String(index + 1).padStart(2, '0')}
+                            </td>
+                            <td className="p-3 text-center whitespace-nowrap">
+                              <span className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-300 font-black text-xs inline-flex items-center justify-center border border-teal-500/30">
+                                {primeiraLetra}
+                              </span>
+                            </td>
+                            <td className="p-3 font-extrabold text-white group-hover:text-teal-300 transition-colors">
+                              {item.nome}
+                            </td>
+                            <td className="p-3 whitespace-nowrap">
+                              <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                                {item.categoria}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center text-slate-400 font-bold whitespace-nowrap">
+                              ⏱ {item.duracaoMinutos} min
+                            </td>
+                            <td className="p-3 font-extrabold text-emerald-400 text-sm whitespace-nowrap">
+                              R$ {item.valorPadrao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="p-3 text-right whitespace-nowrap">
+                              <button
+                                onClick={() => handleAdicionarProcedimentoCat(item)}
+                                className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-xl font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-teal-600/20 cursor-pointer transition-all ml-auto"
+                              >
+                                <Plus className="w-3.5 h-3.5" /> + Adicionar ao Orçamento
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-400 text-xs font-bold">
+                          Nenhum procedimento encontrado com os filtros selecionados.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
 
