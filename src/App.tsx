@@ -54,33 +54,15 @@ export function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-  // Autenticação Persistente no F5 / Recarregamento
+  // Autenticação: Sempre abre na tela de Login ao acessar o site
   const [usuarioLogado, setUsuarioLogado] = useState<{
     nome: string;
     email: string;
     funcao: string;
     cro: string;
-  } | null>(() => {
-    const salvo = localStorage.getItem(SESSION_KEY);
-    if (salvo) {
-      try {
-        return JSON.parse(salvo);
-      } catch (e) {
-        console.error('Erro ao restaurar sessão:', e);
-      }
-    }
-    return {
-      nome: 'Crenilto Junior',
-      email: 'juniorbor1986@gmail.com',
-      funcao: 'Administrador / Cirurgião-Dentista',
-      cro: 'CRO-RO 147369'
-    };
-  });
+  } | null>(null);
 
-  const [isAutenticado, setIsAutenticado] = useState<boolean>(() => {
-    const salvo = localStorage.getItem(SESSION_KEY);
-    return salvo !== null ? true : true; // Mantém autenticado por padrão para o usuário cadastrado
-  });
+  const [isAutenticado, setIsAutenticado] = useState<boolean>(false);
 
   // Navegação
   const [activeTab, setActiveTab] = useState<string>('dashboard');
