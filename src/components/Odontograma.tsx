@@ -412,7 +412,22 @@ const Tooth3DCanvas: React.FC<{
     camera.position.set(0, 1.5, 4);
 
     // 2. Renderer com ACESFilmicToneMapping e sombras suaves
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (err) {
+      console.warn('WebGL não suportado ou erro ao inicializar contexto:', err);
+      if (mountRef.current) {
+        mountRef.current.innerHTML = `
+          <div class="w-full h-full min-h-[380px] flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-slate-950 rounded-2xl border border-slate-800">
+            <span class="text-sm font-extrabold text-teal-400 mb-1">Visualização Odontológica Ativa</span>
+            <p class="text-xs text-slate-500 max-w-xs">Aceleração de hardware WebGL indisponível neste navegador. O prontuário permanece 100% funcional.</p>
+          </div>
+        `;
+      }
+      return;
+    }
+
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
