@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
 import type {
   StatusDente,
   DenteInfo,
@@ -20,7 +23,9 @@ import {
   ImageIcon,
   Bot,
   Tag,
-  Info
+  Info,
+  Upload,
+  RotateCw
 } from 'lucide-react';
 
 interface OdontogramaProps {
@@ -356,6 +361,8 @@ const Tooth3DCanvas: React.FC<{
   dentesData: Record<number, DenteInfo>;
   darkMode?: boolean;
   faceAngulo?: string;
+  gltfUrl?: string | null;
+  autoRotate?: boolean;
 }> = ({
   denteNumero,
   denteInfo,
@@ -363,15 +370,15 @@ const Tooth3DCanvas: React.FC<{
   mostrarInterno = false,
   dentesData,
   darkMode = true,
-  faceAngulo
+  faceAngulo,
+  gltfUrl,
+  autoRotate = false
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const mainGroupRef = useRef<THREE.Group | null>(null);
-  const isDraggingRef = useRef(false);
-  const previousMousePositionRef = useRef({ x: 0, y: 0 });
 
   // Renderização e Animação 3D
   useEffect(() => {
@@ -386,11 +393,14 @@ const Tooth3DCanvas: React.FC<{
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     cameraRef.current = camera;
+    camera.position.set(0, 1.5, 4);
 
-    // 2. Renderer com antialiasing e sombras de alta qualidade
+    // 2. Renderer com ACESFilmicToneMapping e sombras suaves
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
@@ -398,29 +408,77 @@ const Tooth3DCanvas: React.FC<{
     mountRef.current.innerHTML = '';
     mountRef.current.appendChild(renderer.domElement);
 
-    // 3. Iluminação de Estúdio Dental Profissional
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    // 3. Controles de Órbita Suaves (OrbitControls)
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 1;
+    controls.maxDistance = 25;
+    controls.autoRotate = autoRotate;
+    controls.autoRotateSpeed = 1.5;
+
+    // 4. Iluminação de Estúdio Dental Profissional
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
-    keyLight.position.set(5, 8, 10);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    keyLight.position.set(5, 5, 5);
     keyLight.castShadow = true;
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0x14b8a6, 0.8);
-    fillLight.position.set(-8, -4, -6);
+    const fillLight = new THREE.DirectionalLight(0xe0f2fe, 1.2);
+    fillLight.position.set(-5, 2, -3);
     scene.add(fillLight);
 
-    const rimLight = new THREE.PointLight(0x38bdf8, 1.5, 20);
-    rimLight.position.set(0, 5, -8);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    rimLight.position.set(0, -5, 0);
     scene.add(rimLight);
 
-    // 4. Construção dos Dentes no Espaço 3D conforme o Modo
+    // 5. Construção dos Dentes no Espaço 3D conforme o Modo
     const mainGroup = new THREE.Group();
     mainGroupRef.current = mainGroup;
     scene.add(mainGroup);
 
-    if (modoArcada === 'individual') {
+    if (gltfUrl) {
+      // Carregamento de Arquivo GLTF/GLB Customizado do Usuário
+      const loader = new GLTFLoader();
+      loader.load(
+        gltfUrl,
+        (gltf) => {
+          const model = gltf.scene;
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const scale = 3.5 / (maxDim || 1);
+
+          model.scale.setScalar(scale);
+          model.position.sub(center.multiplyScalar(scale));
+
+          model.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+              if (!child.material || !child.material.map) {
+                child.material = new THREE.MeshPhysicalMaterial({
+                  color: 0xf8fafc,
+                  roughness: 0.15,
+                  metalness: 0.0,
+                  transmission: 0.2,
+                  ior: 1.5,
+                  clearcoat: 1.0,
+                  clearcoatRoughness: 0.1
+                });
+              }
+            }
+          });
+
+          mainGroup.add(model);
+        },
+        undefined,
+        (err) => console.error('Erro ao carregar modelo GLTF:', err)
+      );
+    } else if (modoArcada === 'individual') {
       // Modo Dente Único Ampliado
       const dente3D = criarGeometriaDente3D(denteNumero);
       
@@ -467,7 +525,6 @@ const Tooth3DCanvas: React.FC<{
       }
 
       mainGroup.add(dente3D);
-      camera.position.set(0, 0, 6);
     } else {
       // Modos Arcada Completa (Frontal, Maxila, Mandíbula, Decídua)
       const dentesParaRenderizar =
@@ -531,10 +588,11 @@ const Tooth3DCanvas: React.FC<{
       }
     }
 
-    // 5. Loop de Renderização Contínua
+    // 6. Loop de Animação Contínua com OrbitControls
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      controls.update();
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
@@ -555,7 +613,7 @@ const Tooth3DCanvas: React.FC<{
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
     };
-  }, [denteNumero, modoArcada, mostrarInterno, dentesData, darkMode]);
+  }, [denteNumero, modoArcada, mostrarInterno, dentesData, darkMode, gltfUrl, autoRotate]);
 
   // Posicionamento Dinâmico de Câmera por Face Selecionada
   useEffect(() => {
@@ -579,39 +637,18 @@ const Tooth3DCanvas: React.FC<{
     }
   }, [faceAngulo, modoArcada]);
 
-  // Controle de Rotação Manual com o Mouse
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDraggingRef.current = true;
-    previousMousePositionRef.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current || !mainGroupRef.current) return;
-    const deltaX = e.clientX - previousMousePositionRef.current.x;
-    const deltaY = e.clientY - previousMousePositionRef.current.y;
-
-    mainGroupRef.current.rotation.y += deltaX * 0.01;
-    mainGroupRef.current.rotation.x += deltaY * 0.01;
-
-    previousMousePositionRef.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
-  };
-
   return (
     <div
       ref={mountRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
       className="w-full h-full min-h-[380px] sm:min-h-[480px] cursor-grab active:cursor-grabbing relative overflow-hidden rounded-2xl"
     >
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-[11px] font-extrabold text-teal-400">
         <Sparkles className="w-3.5 h-3.5 text-teal-400 animate-pulse" />
         <span>ENGINE 3D WEBGL REAL-TIME</span>
+      </div>
+
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/85 backdrop-blur-md px-4 py-1.5 rounded-full text-[11px] font-bold text-slate-300 shadow-xl border border-slate-800 z-10 pointer-events-none">
+        Clique e arraste para girar | Scroll para zoom
       </div>
     </div>
   );
@@ -636,6 +673,16 @@ export const Odontograma: React.FC<OdontogramaProps> = ({
   const [faceAngulo, setFaceAngulo] = useState<string>('VESTIBULAR');
   const [mostrarInterno, setMostrarInterno] = useState<boolean>(false);
   const [assistenteIAAberto, setAssistenteIAAberto] = useState<boolean>(false);
+  const [customGltfUrl, setCustomGltfUrl] = useState<string | null>(null);
+  const [autoRotate, setAutoRotate] = useState<boolean>(false);
+
+  const handleFileUploadGltf = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setCustomGltfUrl(url);
+    }
+  };
 
   // Form State do Painel Lateral
   const [statusNovoInput, setStatusNovoInput] = useState<StatusDente>('Saudável');
@@ -725,6 +772,20 @@ export const Odontograma: React.FC<OdontogramaProps> = ({
             ))}
           </div>
 
+          <label className="bg-slate-800 hover:bg-slate-700 text-teal-300 font-extrabold px-3.5 py-2.5 rounded-2xl text-xs flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer shadow-md">
+            <Upload className="w-4 h-4 text-teal-400" /> Carregar modelo .GLB / .GLTF
+            <input type="file" accept=".glb,.gltf" onChange={handleFileUploadGltf} className="hidden" />
+          </label>
+
+          <button
+            onClick={() => setAutoRotate(!autoRotate)}
+            className={`font-extrabold px-3.5 py-2.5 rounded-2xl text-xs flex items-center gap-1.5 border transition-all cursor-pointer shadow-md ${
+              autoRotate ? 'bg-teal-600 text-white border-teal-500 shadow-teal-600/30' : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}
+          >
+            <RotateCw className="w-4 h-4" /> Auto-Girar
+          </button>
+
           <button
             onClick={() => setAssistenteIAAberto(true)}
             className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 font-extrabold px-3.5 py-2.5 rounded-2xl text-xs flex items-center gap-1.5 border border-purple-500/30 transition-all cursor-pointer"
@@ -798,6 +859,8 @@ export const Odontograma: React.FC<OdontogramaProps> = ({
                 dentesData={dentes}
                 darkMode={darkMode}
                 faceAngulo={faceAngulo}
+                gltfUrl={customGltfUrl}
+                autoRotate={autoRotate}
               />
 
               {/* Botões Flutuantes de Angulação da Câmera por Face */}
