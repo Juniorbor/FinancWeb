@@ -120,34 +120,35 @@ const criarGeometriaDente3D = (numero: number) => {
   const isSuperior = (numero >= 11 && numero <= 28) || (numero >= 51 && numero <= 65);
   const group = new THREE.Group();
 
-  // Materiais PBR Anatômicos
+  // Materiais PBR Anatômicos Fotorrealistas (Nível Profissional OnDoctor)
   const esmalteMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xfbf9f5,
-    roughness: 0.18,
-    metalness: 0.05,
-    transmission: 0.12,
-    ior: 1.5,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.1
+    color: 0xfcfaf5,
+    roughness: 0.14,
+    metalness: 0.02,
+    transmission: 0.20,
+    ior: 1.62, // IOR real do esmalte dental humano
+    clearcoat: 0.95,
+    clearcoatRoughness: 0.04,
+    reflectivity: 0.95
   });
 
   const raizMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd9c2a3,
-    roughness: 0.65,
-    metalness: 0.0
+    color: 0xd4b896,
+    roughness: 0.58,
+    metalness: 0.02
   });
 
   const polpaMaterial = new THREE.MeshStandardMaterial({
     color: 0xbe123c,
-    emissive: 0x881337,
-    roughness: 0.3
+    emissive: 0x991b1b,
+    roughness: 0.25
   });
 
   const dentinaMaterial = new THREE.MeshStandardMaterial({
-    color: 0xe6c896,
-    roughness: 0.5,
+    color: 0xe2c69b,
+    roughness: 0.45,
     transparent: true,
-    opacity: 0.85
+    opacity: 0.88
   });
 
   // 1. INCISIVOS (Central e Lateral: 1, 2)
@@ -468,6 +469,26 @@ const Tooth3DCanvas: React.FC<{
 
         mainGroup.add(dente3D);
       });
+
+      // Adicionar Gengiva Anatômica 3D (Pink Gum Arch) fotorrealista estilo modelo profissional OnDoctor
+      const criarGengivaArcada = (isUpper: boolean) => {
+        const gengivaGeo = new THREE.TorusGeometry(5.2, 0.45, 16, 64, Math.PI * 0.95);
+        const gengivaMat = new THREE.MeshPhysicalMaterial({
+          color: 0xe07a82,
+          roughness: 0.35,
+          transmission: 0.08,
+          clearcoat: 0.5,
+          clearcoatRoughness: 0.2
+        });
+        const gengivaMesh = new THREE.Mesh(gengivaGeo, gengivaMat);
+        gengivaMesh.rotation.x = Math.PI / 2;
+        gengivaMesh.rotation.z = Math.PI / 2;
+        gengivaMesh.position.set(0, isUpper ? 2.3 : -2.3, -4.8);
+        return gengivaMesh;
+      };
+
+      if (modoArcada !== 'mandibula') mainGroup.add(criarGengivaArcada(true));
+      if (modoArcada !== 'maxila') mainGroup.add(criarGengivaArcada(false));
 
       if (modoArcada === 'maxila') {
         camera.position.set(0, 8, 2);
