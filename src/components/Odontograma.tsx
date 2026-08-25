@@ -387,8 +387,14 @@ const Tooth3DCanvas: React.FC<{
   const mainGroupRef = useRef<THREE.Group | null>(null);
 
   const [hoveredToothNum, setHoveredToothNum] = useState<number | null>(null);
+  const hoveredToothNumRef = useRef<number | null>(null);
+  const onSelectDenteRef = useRef(onSelectDente);
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
+
+  useEffect(() => {
+    onSelectDenteRef.current = onSelectDente;
+  }, [onSelectDente]);
 
   // Renderização e Animação 3D
   useEffect(() => {
@@ -629,11 +635,14 @@ const Tooth3DCanvas: React.FC<{
           obj = obj.parent;
         }
       }
-      setHoveredToothNum(foundNum);
+      if (foundNum !== hoveredToothNumRef.current) {
+        hoveredToothNumRef.current = foundNum;
+        setHoveredToothNum(foundNum);
+      }
     };
 
     const handlePointerClick = (event: MouseEvent) => {
-      if (!mountRef.current || !cameraRef.current || !mainGroupRef.current || !onSelectDente) return;
+      if (!mountRef.current || !cameraRef.current || !mainGroupRef.current) return;
       const rect = mountRef.current.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -645,7 +654,9 @@ const Tooth3DCanvas: React.FC<{
         let obj: THREE.Object3D | null = intersects[0].object;
         while (obj && obj !== mainGroupRef.current) {
           if (obj.userData && obj.userData.numero) {
-            onSelectDente(obj.userData.numero);
+            if (onSelectDenteRef.current) {
+              onSelectDenteRef.current(obj.userData.numero);
+            }
             break;
           }
           obj = obj.parent;
@@ -673,7 +684,7 @@ const Tooth3DCanvas: React.FC<{
       domElem.removeEventListener('click', handlePointerClick);
       window.removeEventListener('resize', handleResize);
     };
-  }, [denteNumero, modoArcada, mostrarInterno, dentesData, darkMode, gltfUrl, autoRotate, onSelectDente]);
+  }, [denteNumero, modoArcada, mostrarInterno, dentesData, darkMode, gltfUrl, autoRotate]);
 
   // Posicionamento Dinâmico de Câmera por Face Selecionada
   useEffect(() => {
