@@ -3,6 +3,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
+import { getInfoDenteBiblioteca } from '../data/bibliotecaDentes3D';
+
+THREE.Cache.enabled = true;
+
 import type {
   StatusDente,
   DenteInfo,
@@ -363,6 +367,7 @@ const Tooth3DCanvas: React.FC<{
   faceAngulo?: string;
   gltfUrl?: string | null;
   autoRotate?: boolean;
+  onSelectDente?: (numero: number) => void;
 }> = ({
   denteNumero,
   denteInfo,
@@ -372,13 +377,18 @@ const Tooth3DCanvas: React.FC<{
   darkMode = true,
   faceAngulo,
   gltfUrl,
-  autoRotate = false
+  autoRotate = false,
+  onSelectDente
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const mainGroupRef = useRef<THREE.Group | null>(null);
+
+  const [hoveredToothNum, setHoveredToothNum] = useState<number | null>(null);
+  const raycasterRef = useRef(new THREE.Raycaster());
+  const mouseRef = useRef(new THREE.Vector2());
 
   // Renderização e Animação 3D
   useEffect(() => {
@@ -599,6 +609,54 @@ const Tooth3DCanvas: React.FC<{
     };
     animate();
 
+    const handlePointerMove = (event: MouseEvent) => {
+      if (!mountRef.current || !cameraRef.current || !mainGroupRef.current) return;
+      const rect = mountRef.current.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      const intersects = raycasterRef.current.intersectObjects(mainGroupRef.current.children, true);
+
+      let foundNum: number | null = null;
+      if (intersects.length > 0) {
+        let obj: THREE.Object3D | null = intersects[0].object;
+        while (obj && obj !== mainGroupRef.current) {
+          if (obj.userData && obj.userData.numero) {
+            foundNum = obj.userData.numero;
+            break;
+          }
+          obj = obj.parent;
+        }
+      }
+      setHoveredToothNum(foundNum);
+    };
+
+    const handlePointerClick = (event: MouseEvent) => {
+      if (!mountRef.current || !cameraRef.current || !mainGroupRef.current || !onSelectDente) return;
+      const rect = mountRef.current.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      const intersects = raycasterRef.current.intersectObjects(mainGroupRef.current.children, true);
+
+      if (intersects.length > 0) {
+        let obj: THREE.Object3D | null = intersects[0].object;
+        while (obj && obj !== mainGroupRef.current) {
+          if (obj.userData && obj.userData.numero) {
+            onSelectDente(obj.userData.numero);
+            break;
+          }
+          obj = obj.parent;
+        }
+      }
+    };
+
+    const domElem = renderer.domElement;
+    domElem.addEventListener('mousemove', handlePointerMove);
+    domElem.addEventListener('click', handlePointerClick);
+
     const handleResize = () => {
       if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
       const w = mountRef.current.clientWidth;
@@ -611,9 +669,11 @@ const Tooth3DCanvas: React.FC<{
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      domElem.removeEventListener('mousemove', handlePointerMove);
+      domElem.removeEventListener('click', handlePointerClick);
       window.removeEventListener('resize', handleResize);
     };
-  }, [denteNumero, modoArcada, mostrarInterno, dentesData, darkMode, gltfUrl, autoRotate]);
+  }, [denteNumero, modoArcada, mostrarInterno, dentesData, darkMode, gltfUrl, autoRotate, onSelectDente]);
 
   // Posicionamento Dinâmico de Câmera por Face Selecionada
   useEffect(() => {
@@ -647,8 +707,22 @@ const Tooth3DCanvas: React.FC<{
         <span>ENGINE 3D WEBGL REAL-TIME</span>
       </div>
 
+      {hoveredToothNum && (
+        <div className="absolute top-3 right-3 z-20 bg-slate-900/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-teal-500/50 shadow-2xl pointer-events-none flex flex-col text-right transition-all">
+          <span className="text-[10px] font-extrabold text-teal-400 uppercase tracking-wider">
+            DENTE #{hoveredToothNum}
+          </span>
+          <span className="text-xs font-extrabold text-white">
+            {getInfoDenteBiblioteca(hoveredToothNum).nome}
+          </span>
+          <span className="text-[10px] text-slate-400 font-bold">
+            {getInfoDenteBiblioteca(hoveredToothNum).arcada.toUpperCase()} • LADO {getInfoDenteBiblioteca(hoveredToothNum).lado.toUpperCase()}
+          </span>
+        </div>
+      )}
+
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/85 backdrop-blur-md px-4 py-1.5 rounded-full text-[11px] font-bold text-slate-300 shadow-xl border border-slate-800 z-10 pointer-events-none">
-        Clique e arraste para girar | Scroll para zoom
+        Clique e arraste para girar | Scroll para zoom | Clique no dente para analisar
       </div>
     </div>
   );
@@ -861,6 +935,10 @@ export const Odontograma: React.FC<OdontogramaProps> = ({
                 faceAngulo={faceAngulo}
                 gltfUrl={customGltfUrl}
                 autoRotate={autoRotate}
+                onSelectDente={(num) => {
+                  setDenteSelecionadoNum(num);
+                  setModoArcada('individual');
+                }}
               />
 
               {/* Botões Flutuantes de Angulação da Câmera por Face */}
