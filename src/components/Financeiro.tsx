@@ -648,7 +648,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
           {/* GRÁFICO DE BARRAS HORIZONTAIS: GASTOS POR CATEGORIA */}
           <div className="space-y-3">
             <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Ranking de Despesas (R$)</span>
-            <div className="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[260px] overflow-y-auto pr-2 scrollbar-thin scrollbar-custom">
               {categoriasFinanceirasData.map((c) => {
                 const barPct = maxCategoriaVal > 0 ? (c.valor / maxCategoriaVal) * 100 : 0;
                 return (

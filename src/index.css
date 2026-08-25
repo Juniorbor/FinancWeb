@@ -31,14 +31,70 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ==========================================================================
+   ESTILO PADRÃO DA BARRA DE ROLAGEM (SCROLLBAR) DO SITE ODONTOWEB
+   ========================================================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0d9488; /* Teal-600 oficial OdontoWeb */
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #14b8a6; /* Teal-500 hover */
+}
+
+/* Compatibilidade com Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #0d9488 rgba(15, 23, 42, 0.5);
+}
+
 .scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 9999px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
+  background: #0d9488;
   border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #14b8a6;
+}
+
+.scrollbar-custom::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 9999px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background: #0d9488;
+  border-radius: 9999px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background: #14b8a6;
 }
 
 /* ==========================================================================
