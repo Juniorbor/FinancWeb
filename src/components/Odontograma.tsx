@@ -120,27 +120,33 @@ const criarGeometriaDente3D = (numero: number) => {
   const isSuperior = (numero >= 11 && numero <= 28) || (numero >= 51 && numero <= 65);
   const group = new THREE.Group();
 
-  // Materiais PBR Anatômicos Fotorrealistas (Nível Profissional OnDoctor)
+  // Materiais PBR Anatômicos Fotorrealistas (Idênticos ao modelo clínico anexo)
   const esmalteMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xfcfaf5,
-    roughness: 0.14,
+    color: 0xf6ede4, // Tom marfim/porcelana anatômico
+    roughness: 0.12,
     metalness: 0.02,
-    transmission: 0.20,
-    ior: 1.62, // IOR real do esmalte dental humano
+    transmission: 0.14,
+    ior: 1.55,
     clearcoat: 0.95,
-    clearcoatRoughness: 0.04,
-    reflectivity: 0.95
+    clearcoatRoughness: 0.03,
+    reflectivity: 0.92
+  });
+
+  const coloMaterial = new THREE.MeshStandardMaterial({
+    color: 0xe6cba7, // Colo do dente (transição esmalte-cemento)
+    roughness: 0.35,
+    metalness: 0.0
   });
 
   const raizMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd4b896,
-    roughness: 0.58,
-    metalness: 0.02
+    color: 0xd8b88f, // Cemento radicular anatômico beige/amarelado
+    roughness: 0.50,
+    metalness: 0.0
   });
 
   const polpaMaterial = new THREE.MeshStandardMaterial({
     color: 0xbe123c,
-    emissive: 0x991b1b,
+    emissive: 0x881337,
     roughness: 0.25
   });
 
@@ -153,141 +159,184 @@ const criarGeometriaDente3D = (numero: number) => {
 
   // 1. INCISIVOS (Central e Lateral: 1, 2)
   if (d === 1 || d === 2) {
-    // Coroa em pá/cinzel
-    const coroaGeo = new THREE.BoxGeometry(0.8, 1.2, 0.5, 8, 8, 8);
-    // Suavizar topo e bordo incisal
+    // Coroa Anatômica em Pá/Cinzel
+    const coroaGeo = new THREE.CylinderGeometry(0.55, 0.42, 1.25, 32);
     const pos = coroaGeo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       let y = pos.getY(i);
       let z = pos.getZ(i);
-      if (y > 0.3) {
-        pos.setZ(i, z * 0.4); // afinar margem incisal
+      if (y > 0.2) {
+        pos.setZ(i, z * 0.35); // Bordo incisal afinado e anatômico
       }
     }
     coroaGeo.computeVertexNormals();
     const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
-    coroaMesh.position.y = isSuperior ? 0.6 : -0.6;
+    coroaMesh.position.y = isSuperior ? 0.65 : -0.65;
     coroaMesh.name = 'coroa';
     group.add(coroaMesh);
 
-    // Raiz única cônica
-    const raizGeo = new THREE.ConeGeometry(0.38, 1.6, 16);
+    // Colo cervical
+    const coloGeo = new THREE.CylinderGeometry(0.43, 0.40, 0.2, 32);
+    const coloMesh = new THREE.Mesh(coloGeo, coloMaterial);
+    coloMesh.position.y = isSuperior ? 1.28 : -1.28;
+    group.add(coloMesh);
+
+    // Raiz Única Cônica Elegante
+    const raizGeo = new THREE.CylinderGeometry(0.40, 0.08, 1.85, 32);
+    const posR = raizGeo.attributes.position;
+    for (let i = 0; i < posR.count; i++) {
+      let y = posR.getY(i);
+      let z = posR.getZ(i);
+      if (y < -0.4) {
+        posR.setZ(i, z + (y + 0.4) * 0.15); // Curvatura apical leve
+      }
+    }
+    raizGeo.computeVertexNormals();
     const raizMesh = new THREE.Mesh(raizGeo, raizMaterial);
-    raizMesh.position.y = isSuperior ? 1.8 : -1.8;
+    raizMesh.position.y = isSuperior ? 2.2 : -2.2;
     raizMesh.rotation.x = isSuperior ? 0 : Math.PI;
     raizMesh.name = 'raiz';
     group.add(raizMesh);
 
-    // Polpa/Canal radicular interno
-    const polpaGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.2, 8);
-    const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
-    polpaMesh.position.y = isSuperior ? 1.1 : -1.1;
-    polpaMesh.name = 'polpa';
-    group.add(polpaMesh);
-  }
-  // 2. CANINOS (3)
-  else if (d === 3) {
-    // Coroa com cúspide pontiaguda e crista central
-    const coroaGeo = new THREE.ConeGeometry(0.55, 1.4, 16);
-    const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
-    coroaMesh.position.y = isSuperior ? 0.7 : -0.7;
-    coroaMesh.rotation.x = isSuperior ? Math.PI : 0;
-    coroaMesh.name = 'coroa';
-    group.add(coroaMesh);
-
-    // Raiz única longa e robusta
-    const raizGeo = new THREE.ConeGeometry(0.42, 2.0, 16);
-    const raizMesh = new THREE.Mesh(raizGeo, raizMaterial);
-    raizMesh.position.y = isSuperior ? 2.1 : -2.1;
-    raizMesh.rotation.x = isSuperior ? 0 : Math.PI;
-    raizMesh.name = 'raiz';
-    group.add(raizMesh);
-
-    const polpaGeo = new THREE.CylinderGeometry(0.09, 0.02, 2.6, 8);
+    // Polpa radicular interna
+    const polpaGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.4, 12);
     const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
     polpaMesh.position.y = isSuperior ? 1.3 : -1.3;
     polpaMesh.name = 'polpa';
     group.add(polpaMesh);
   }
-  // 3. PRÉ-MOLARES (4, 5)
-  else if (d === 4 || d === 5) {
-    // Coroa bicúspide ovalada
-    const coroaGeo = new THREE.CylinderGeometry(0.55, 0.48, 1.2, 16);
-    const pos = coroaGeo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      let y = pos.getY(i);
-      let x = pos.getX(i);
-      if (y > 0.4) {
-        // Criar sulco oclusal central e 2 cúspides
-        pos.setY(i, y - Math.abs(x) * 0.25);
-      }
-    }
-    coroaGeo.computeVertexNormals();
-    const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
-    coroaMesh.position.y = isSuperior ? 0.6 : -0.6;
-    coroaMesh.name = 'coroa';
-    group.add(coroaMesh);
-
-    // Raízes
-    const raiz1Geo = new THREE.ConeGeometry(0.32, 1.7, 12);
-    const raiz1 = new THREE.Mesh(raiz1Geo, raizMaterial);
-    raiz1.position.set(0.12, isSuperior ? 1.8 : -1.8, 0);
-    raiz1.rotation.x = isSuperior ? 0 : Math.PI;
-    raiz1.name = 'raiz';
-    group.add(raiz1);
-
-    const polpaGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.2, 8);
-    const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
-    polpaMesh.position.y = isSuperior ? 1.1 : -1.1;
-    polpaMesh.name = 'polpa';
-    group.add(polpaMesh);
-  }
-  // 4. MOLARES (6, 7, 8)
-  else {
-    // Coroa molar larga quadricúspide com mesa oclusal e sulcos
-    const coroaGeo = new THREE.BoxGeometry(1.2, 1.1, 1.1, 12, 12, 12);
+  // 2. CANINOS (3)
+  else if (d === 3) {
+    // Coroa Anatômica Lanceolada com Cúspide Central Proeminente
+    const coroaGeo = new THREE.CylinderGeometry(0.58, 0.44, 1.38, 32);
     const pos = coroaGeo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       let y = pos.getY(i);
       let x = pos.getX(i);
       let z = pos.getZ(i);
       if (y > 0.3) {
-        // Anatomia oclusal: 4 cúspides e fossa central
-        const distCenter = Math.sqrt(x * x + z * z);
-        pos.setY(i, y - (0.35 - Math.min(0.3, distCenter * 0.4)));
+        pos.setY(i, y + (0.3 - Math.abs(x) * 0.4)); // Ponta de cúspide lanceolada
+        pos.setZ(i, z * 0.5);
       }
     }
     coroaGeo.computeVertexNormals();
     const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
-    coroaMesh.position.y = isSuperior ? 0.55 : -0.55;
+    coroaMesh.position.y = isSuperior ? 0.7 : -0.7;
     coroaMesh.name = 'coroa';
     group.add(coroaMesh);
 
-    // 2 ou 3 Raízes Molares com furca
+    // Colo cervical
+    const coloGeo = new THREE.CylinderGeometry(0.45, 0.42, 0.2, 32);
+    const coloMesh = new THREE.Mesh(coloGeo, coloMaterial);
+    coloMesh.position.y = isSuperior ? 1.38 : -1.38;
+    group.add(coloMesh);
+
+    // Raiz Canina Única Longa e Robusta
+    const raizGeo = new THREE.CylinderGeometry(0.43, 0.08, 2.3, 32);
+    const raizMesh = new THREE.Mesh(raizGeo, raizMaterial);
+    raizMesh.position.y = isSuperior ? 2.5 : -2.5;
+    raizMesh.rotation.x = isSuperior ? 0 : Math.PI;
+    raizMesh.name = 'raiz';
+    group.add(raizMesh);
+
+    const polpaGeo = new THREE.CylinderGeometry(0.09, 0.02, 2.8, 12);
+    const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
+    polpaMesh.position.y = isSuperior ? 1.4 : -1.4;
+    polpaMesh.name = 'polpa';
+    group.add(polpaMesh);
+  }
+  // 3. PRÉ-MOLARES (4, 5)
+  else if (d === 4 || d === 5) {
+    // Coroa Bicúspide Ovalada com Sulco Central
+    const coroaGeo = new THREE.CylinderGeometry(0.62, 0.48, 1.28, 32);
+    const pos = coroaGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      let y = pos.getY(i);
+      let x = pos.getX(i);
+      if (y > 0.35) {
+        pos.setY(i, y - Math.abs(x) * 0.28); // Sulco oclusal central e 2 cúspides
+      }
+    }
+    coroaGeo.computeVertexNormals();
+    const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
+    coroaMesh.position.y = isSuperior ? 0.65 : -0.65;
+    coroaMesh.name = 'coroa';
+    group.add(coroaMesh);
+
+    // Colo cervical
+    const coloGeo = new THREE.CylinderGeometry(0.49, 0.44, 0.2, 32);
+    const coloMesh = new THREE.Mesh(coloGeo, coloMaterial);
+    coloMesh.position.y = isSuperior ? 1.30 : -1.30;
+    group.add(coloMesh);
+
+    // Raízes Pré-Molares Anatômicas
+    const numR = (isSuperior && d === 4) ? 2 : 1;
+    for (let r = 0; r < numR; r++) {
+      const raizGeo = new THREE.CylinderGeometry(0.32, 0.07, 1.95, 24);
+      const raizMesh = new THREE.Mesh(raizGeo, raizMaterial);
+      const offsetX = numR > 1 ? (r === 0 ? 0.14 : -0.14) : 0;
+      raizMesh.position.set(offsetX, isSuperior ? 2.25 : -2.25, 0);
+      raizMesh.rotation.x = isSuperior ? 0 : Math.PI;
+      raizMesh.name = 'raiz';
+      group.add(raizMesh);
+    }
+
+    const polpaGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.5, 12);
+    const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
+    polpaMesh.position.y = isSuperior ? 1.3 : -1.3;
+    polpaMesh.name = 'polpa';
+    group.add(polpaMesh);
+  }
+  // 4. MOLARES (6, 7, 8)
+  else {
+    // Coroa Molar Quadricúspide com Sulcos Anatômicos
+    const coroaGeo = new THREE.BoxGeometry(1.25, 1.15, 1.15, 16, 16, 16);
+    const pos = coroaGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      let y = pos.getY(i);
+      let x = pos.getX(i);
+      let z = pos.getZ(i);
+      if (y > 0.3) {
+        const distCenter = Math.sqrt(x * x + z * z);
+        pos.setY(i, y - (0.35 - Math.min(0.28, distCenter * 0.4)));
+      }
+    }
+    coroaGeo.computeVertexNormals();
+    const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
+    coroaMesh.position.y = isSuperior ? 0.60 : -0.60;
+    coroaMesh.name = 'coroa';
+    group.add(coroaMesh);
+
+    // Colo cervical
+    const coloGeo = new THREE.BoxGeometry(1.15, 0.2, 1.05);
+    const coloMesh = new THREE.Mesh(coloGeo, coloMaterial);
+    coloMesh.position.y = isSuperior ? 1.20 : -1.20;
+    group.add(coloMesh);
+
+    // Raízes Molares com Curvatura Distal Anatômica (3 na maxila, 2 na mandíbula)
     const numRaizes = isSuperior ? 3 : 2;
     for (let r = 0; r < numRaizes; r++) {
-      const raizGeo = new THREE.ConeGeometry(0.28, 1.8, 12);
+      const raizGeo = new THREE.CylinderGeometry(0.28, 0.06, 2.0, 24);
       const raizMesh = new THREE.Mesh(raizGeo, raizMaterial);
       const angle = (r / numRaizes) * Math.PI * 2;
-      const offsetX = Math.cos(angle) * 0.28;
-      const offsetZ = Math.sin(angle) * 0.28;
-      raizMesh.position.set(offsetX, isSuperior ? 1.9 : -1.9, offsetZ);
-      raizMesh.rotation.x = isSuperior ? (offsetZ * 0.2) : (Math.PI - offsetZ * 0.2);
-      raizMesh.rotation.z = -offsetX * 0.2;
+      const offsetX = Math.cos(angle) * 0.32;
+      const offsetZ = Math.sin(angle) * 0.32;
+      raizMesh.position.set(offsetX, isSuperior ? 2.25 : -2.25, offsetZ);
+      raizMesh.rotation.x = isSuperior ? (offsetZ * 0.15) : (Math.PI - offsetZ * 0.15);
+      raizMesh.rotation.z = -offsetX * 0.15;
       raizMesh.name = 'raiz';
       group.add(raizMesh);
 
-      // Canal por raiz
-      const polpaGeo = new THREE.CylinderGeometry(0.06, 0.015, 2.0, 8);
+      const polpaGeo = new THREE.CylinderGeometry(0.06, 0.015, 2.2, 12);
       const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
-      polpaMesh.position.set(offsetX * 0.7, isSuperior ? 1.2 : -1.2, offsetZ * 0.7);
+      polpaMesh.position.set(offsetX * 0.7, isSuperior ? 1.3 : -1.3, offsetZ * 0.7);
       polpaMesh.name = 'polpa';
       group.add(polpaMesh);
     }
   }
 
   // Camada Interna de Dentina Anatômica
-  const dentinaGeo = new THREE.CylinderGeometry(0.35, 0.15, 1.8, 12);
+  const dentinaGeo = new THREE.CylinderGeometry(0.35, 0.15, 1.8, 16);
   const dentinaMesh = new THREE.Mesh(dentinaGeo, dentinaMaterial);
   dentinaMesh.position.y = isSuperior ? 0.9 : -0.9;
   dentinaMesh.name = 'dentina';
@@ -447,14 +496,14 @@ const Tooth3DCanvas: React.FC<{
 
         const angleStep = 0.22;
         const angle = (isRight ? -posInSeq : posInSeq) * angleStep;
-        const radius = 5.5;
+        const radius = 5.2;
         const x = Math.sin(angle) * radius;
         const z = (Math.cos(angle) - 1) * radius;
-        const y = isUpper ? 1.8 : -1.8;
+        const y = isUpper ? 0.35 : -0.35; // Oclusão anatômica onde as coroas se tocam no centro
 
         dente3D.position.set(x, y, z);
         dente3D.rotation.y = angle;
-        dente3D.scale.set(0.65, 0.65, 0.65);
+        dente3D.scale.set(0.60, 0.60, 0.60);
         dente3D.userData = { numero: num };
 
         // Colorir de acordo com o status clínico
@@ -469,26 +518,6 @@ const Tooth3DCanvas: React.FC<{
 
         mainGroup.add(dente3D);
       });
-
-      // Adicionar Gengiva Anatômica 3D (Pink Gum Arch) fotorrealista estilo modelo profissional OnDoctor
-      const criarGengivaArcada = (isUpper: boolean) => {
-        const gengivaGeo = new THREE.TorusGeometry(5.2, 0.45, 16, 64, Math.PI * 0.95);
-        const gengivaMat = new THREE.MeshPhysicalMaterial({
-          color: 0xe07a82,
-          roughness: 0.35,
-          transmission: 0.08,
-          clearcoat: 0.5,
-          clearcoatRoughness: 0.2
-        });
-        const gengivaMesh = new THREE.Mesh(gengivaGeo, gengivaMat);
-        gengivaMesh.rotation.x = Math.PI / 2;
-        gengivaMesh.rotation.z = Math.PI / 2;
-        gengivaMesh.position.set(0, isUpper ? 2.3 : -2.3, -4.8);
-        return gengivaMesh;
-      };
-
-      if (modoArcada !== 'mandibula') mainGroup.add(criarGengivaArcada(true));
-      if (modoArcada !== 'maxila') mainGroup.add(criarGengivaArcada(false));
 
       if (modoArcada === 'maxila') {
         camera.position.set(0, 8, 2);
