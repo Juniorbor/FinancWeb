@@ -180,6 +180,11 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
     }
   };
 
+  const handleAdicionarProcedimentoDoOdontograma = (novoProc: Omit<ProcedimentoTratamento, 'id'>) => {
+    const id = `proc-${Date.now()}`;
+    setProcedimentosPaciente((prev) => [...prev, { id, ...novoProc }]);
+  };
+
   const [modalProcAberto, setModalProcAberto] = useState<boolean>(false);
   const [procNomeInput, setProcNomeInput] = useState<string>('');
   const [denteNumInput, setDenteNumInput] = useState<string>('');
@@ -720,9 +725,18 @@ export const PerfilPaciente: React.FC<PerfilPacienteProps> = ({
           <AnamneseView anamnese={anamnese} pacienteNome={paciente.nome} darkMode={darkMode} />
         )}
 
-        {/* 5. Odontograma */}
+        {/* 5. Odontograma 3D Realista */}
         {abaAtiva === 'odontograma' && (
-          <Odontograma pacienteNome={paciente.nome} dentes={dentes} onUpdateDente={onUpdateDente} />
+          <Odontograma
+            pacienteNome={paciente.nome}
+            dentes={dentes}
+            onUpdateDente={onUpdateDente}
+            radiografias={radiografias}
+            fotografias={fotografias}
+            procedimentos={procedimentosPaciente}
+            onAddProcedimento={handleAdicionarProcedimentoDoOdontograma}
+            darkMode={darkMode}
+          />
         )}
 
         {/* 6. Radiografias */}

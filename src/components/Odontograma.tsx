@@ -1,666 +1,1119 @@
-import React, { useState } from 'react';
-import type { StatusDente, DenteInfo } from '../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import * as THREE from 'three';
+import type {
+  StatusDente,
+  DenteInfo,
+  SuperficieDente,
+  CondicaoSuperficie,
+  RadiografiaExame,
+  FotografiaClinica,
+  ProcedimentoTratamento
+} from '../types';
+
 import {
-  CheckCircle2,
   Sparkles,
-  ZoomIn,
-  X,
-  Save,
-  Check,
+  Layers,
   Printer,
-  Plus,
-  FileText,
-  Trash2,
-  Activity,
-  ShieldAlert,
-  DollarSign
+  Save,
+  ArrowLeft,
+  X,
+  ImageIcon,
+  Bot,
+  Tag,
+  Info
 } from 'lucide-react';
 
 interface OdontogramaProps {
   pacienteNome?: string;
   dentes: Record<number, DenteInfo>;
-  onUpdateDente: (numero: number, status: StatusDente, observacoes?: string) => void;
+  onUpdateDente: (
+    numero: number,
+    status: StatusDente,
+    observacoes?: string,
+    superficies?: CondicaoSuperficie[]
+  ) => void;
+  radiografias?: RadiografiaExame[];
+  fotografias?: FotografiaClinica[];
+  procedimentos?: ProcedimentoTratamento[];
+  onAddProcedimento?: (proc: Omit<ProcedimentoTratamento, 'id'>) => void;
   darkMode?: boolean;
 }
 
-export interface ProcedimentoOdontograma {
-  id: string;
-  denteNumero: number;
-  face?: string; // O, V, L, M, D, Raiz, Completo
-  procedimento: string;
-  data: string;
-  dentista: string;
-  status: 'Planejado' | 'Em Andamento' | 'Concluído';
-  valor: number;
-}
+export type ModoVisualizacaoArcada = 'frontal' | 'maxila' | 'mandibula' | 'individual' | 'decidua';
 
-const statusCores: Record<StatusDente, { bg: string; text: string; border: string; badge: string; hex: string }> = {
-  'Saudável': { bg: 'bg-emerald-500/10 hover:bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/40', badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', hex: '#10B981' },
-  'Cárie': { bg: 'bg-rose-500/10 hover:bg-rose-500/20', text: 'text-rose-400', border: 'border-rose-500/40', badge: 'bg-rose-500/20 text-rose-400 border-rose-500/30', hex: '#EF4444' },
-  'Restaurado': { bg: 'bg-sky-500/10 hover:bg-sky-500/20', text: 'text-sky-400', border: 'border-sky-500/40', badge: 'bg-sky-500/20 text-sky-400 border-sky-500/30', hex: '#0EA5E9' },
-  'Tratamento Canal': { bg: 'bg-amber-500/10 hover:bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/40', badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30', hex: '#F59E0B' },
-  'Extração Indicada': { bg: 'bg-purple-500/10 hover:bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/40', badge: 'bg-purple-500/20 text-purple-400 border-purple-500/30', hex: '#A855F7' },
-  'Ausente': { bg: 'bg-slate-800/60 hover:bg-slate-800/80', text: 'text-slate-400', border: 'border-slate-700/60', badge: 'bg-slate-800/80 text-slate-400 border-slate-700', hex: '#64748B' },
-  'Implante': { bg: 'bg-teal-500/10 hover:bg-teal-500/20', text: 'text-teal-400', border: 'border-teal-500/40', badge: 'bg-teal-500/20 text-teal-400 border-teal-500/30', hex: '#14B8A6' },
-  'Coroa': { bg: 'bg-indigo-500/10 hover:bg-indigo-500/20', text: 'text-indigo-400', border: 'border-indigo-500/40', badge: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', hex: '#6366F1' },
-  'Lesão': { bg: 'bg-orange-500/10 hover:bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/40', badge: 'bg-orange-500/20 text-orange-400 border-orange-500/30', hex: '#F97316' },
-  'Mobilidade': { bg: 'bg-yellow-500/10 hover:bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/40', badge: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', hex: '#EAB308' },
+// NOTAÇÃO DE DENTES FDI 3950
+const DENTES_PERMANENTES_MAXILA_DIREITA = [18, 17, 16, 15, 14, 13, 12, 11];
+const DENTES_PERMANENTES_MAXILA_ESQUERDA = [21, 22, 23, 24, 25, 26, 27, 28];
+const DENTES_PERMANENTES_MANDIBULA_ESQUERDA = [31, 32, 33, 34, 35, 36, 37, 38];
+const DENTES_PERMANENTES_MANDIBULA_DIREITA = [48, 47, 46, 45, 44, 43, 42, 41];
+
+const DENTES_DECIDUOS_MAXILA_DIREITA = [55, 54, 53, 52, 51];
+const DENTES_DECIDUOS_MAXILA_ESQUERDA = [61, 62, 63, 64, 65];
+const DENTES_DECIDUOS_MANDIBULA_ESQUERDA = [71, 72, 73, 74, 75];
+const DENTES_DECIDUOS_MANDIBULA_DIREITA = [85, 84, 83, 82, 81];
+
+export const CORES_STATUS_CLINICO: Record<StatusDente, { bg: string; text: string; border: string; hex: string }> = {
+  'Saudável': { bg: 'bg-emerald-500/10 hover:bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30', hex: '#10B981' },
+  'Cárie': { bg: 'bg-rose-500/15 hover:bg-rose-500/25', text: 'text-rose-400', border: 'border-rose-500/40', hex: '#F43F5E' },
+  'Restaurado': { bg: 'bg-sky-500/15 hover:bg-sky-500/25', text: 'text-sky-400', border: 'border-sky-500/40', hex: '#38BDF8' },
+  'Restauração Provisória': { bg: 'bg-cyan-500/15 hover:bg-cyan-500/25', text: 'text-cyan-400', border: 'border-cyan-500/40', hex: '#06B6D4' },
+  'Tratamento Canal': { bg: 'bg-amber-500/15 hover:bg-amber-500/25', text: 'text-amber-400', border: 'border-amber-500/40', hex: '#F59E0B' },
+  'Extração Indicada': { bg: 'bg-purple-500/15 hover:bg-purple-500/25', text: 'text-purple-400', border: 'border-purple-500/40', hex: '#A855F7' },
+  'Ausente': { bg: 'bg-slate-800/80 hover:bg-slate-800', text: 'text-slate-400', border: 'border-slate-700', hex: '#64748B' },
+  'Implante': { bg: 'bg-teal-500/15 hover:bg-teal-500/25', text: 'text-teal-400', border: 'border-teal-500/40', hex: '#14B8A6' },
+  'Coroa': { bg: 'bg-indigo-500/15 hover:bg-indigo-500/25', text: 'text-indigo-400', border: 'border-indigo-500/40', hex: '#6366F1' },
+  'Faceta': { bg: 'bg-violet-500/15 hover:bg-violet-500/25', text: 'text-violet-400', border: 'border-violet-500/40', hex: '#8B5CF6' },
+  'Fratura': { bg: 'bg-red-600/20 hover:bg-red-600/30', text: 'text-red-400', border: 'border-red-500/50', hex: '#EF4444' },
+  'Desgaste': { bg: 'bg-orange-500/15 hover:bg-orange-500/25', text: 'text-orange-400', border: 'border-orange-500/40', hex: '#F97316' },
+  'Mobilidade': { bg: 'bg-yellow-500/15 hover:bg-yellow-500/25', text: 'text-yellow-400', border: 'border-yellow-500/40', hex: '#EAB308' },
+  'Reabsorção': { bg: 'bg-pink-500/15 hover:bg-pink-500/25', text: 'text-pink-400', border: 'border-pink-500/40', hex: '#EC4899' },
+  'Lesão': { bg: 'bg-rose-600/20 hover:bg-rose-600/30', text: 'text-rose-500', border: 'border-rose-600/50', hex: '#E11D48' },
+  'Tratamento Periodontal': { bg: 'bg-emerald-600/15 hover:bg-emerald-600/25', text: 'text-emerald-300', border: 'border-emerald-600/40', hex: '#059669' },
+  'Selante': { bg: 'bg-blue-500/15 hover:bg-blue-500/25', text: 'text-blue-400', border: 'border-blue-500/40', hex: '#3B82F6' },
+  'Dente Impactado': { bg: 'bg-slate-700/80 hover:bg-slate-700', text: 'text-slate-300', border: 'border-slate-600', hex: '#475569' },
+  'Outro': { bg: 'bg-slate-800 hover:bg-slate-700', text: 'text-slate-300', border: 'border-slate-700', hex: '#94A3B8' }
 };
 
-const quadrant1 = [18, 17, 16, 15, 14, 13, 12, 11];
-const quadrant2 = [21, 22, 23, 24, 25, 26, 27, 28];
-const quadrant4 = [48, 47, 46, 45, 44, 43, 42, 41];
-const quadrant3 = [31, 32, 33, 34, 35, 36, 37, 38];
-
-const getNomeAnatomicoDente = (num: number) => {
+export const getNomeAnatomicoDente = (num: number): { nome: string; arcada: string; lado: string; tipo: string } => {
+  const isDeciduo = num >= 51 && num <= 85;
   const d = num % 10;
-  const arcada = num >= 11 && num <= 28 ? 'Superior' : 'Inferior';
+  
+  let arcada = 'Superior (Maxila)';
+  let lado = 'Direito';
+  
+  if (num >= 21 && num <= 28) { arcada = 'Superior (Maxila)'; lado = 'Esquerdo'; }
+  else if (num >= 31 && num <= 38) { arcada = 'Inferior (Mandíbula)'; lado = 'Esquerdo'; }
+  else if (num >= 41 && num <= 48) { arcada = 'Inferior (Mandíbula)'; lado = 'Direito'; }
+  else if (num >= 61 && num <= 65) { arcada = 'Superior Decídua'; lado = 'Esquerdo'; }
+  else if (num >= 71 && num <= 75) { arcada = 'Inferior Decídua'; lado = 'Esquerdo'; }
+  else if (num >= 81 && num <= 85) { arcada = 'Inferior Decídua'; lado = 'Direito'; }
+  else if (num >= 51 && num <= 55) { arcada = 'Superior Decídua'; lado = 'Direito'; }
+
   let nome = '';
-  if (d === 1) nome = 'Incisivo Central';
-  else if (d === 2) nome = 'Incisivo Lateral';
-  else if (d === 3) nome = 'Canino';
-  else if (d === 4) nome = 'Primeiro Pré-Molar';
-  else if (d === 5) nome = 'Segundo Pré-Molar';
-  else if (d === 6) nome = 'Primeiro Molar';
-  else if (d === 7) nome = 'Segundo Molar';
-  else if (d === 8) nome = 'Terceiro Molar (Siso)';
-  return `${nome} ${arcada} (${num})`;
+  let tipo = 'Incisivo';
+
+  if (!isDeciduo) {
+    if (d === 1) { nome = 'Incisivo Central'; tipo = 'Incisivo'; }
+    else if (d === 2) { nome = 'Incisivo Lateral'; tipo = 'Incisivo'; }
+    else if (d === 3) { nome = 'Canino'; tipo = 'Canino'; }
+    else if (d === 4) { nome = 'Primeiro Pré-Molar'; tipo = 'Pré-Molar'; }
+    else if (d === 5) { nome = 'Segundo Pré-Molar'; tipo = 'Pré-Molar'; }
+    else if (d === 6) { nome = 'Primeiro Molar'; tipo = 'Molar'; }
+    else if (d === 7) { nome = 'Segundo Molar'; tipo = 'Molar'; }
+    else if (d === 8) { nome = 'Terceiro Molar (Siso)'; tipo = 'Terceiro Molar'; }
+  } else {
+    if (d === 1) { nome = 'Incisivo Central Decíduo'; tipo = 'Incisivo Infantil'; }
+    else if (d === 2) { nome = 'Incisivo Lateral Decíduo'; tipo = 'Incisivo Infantil'; }
+    else if (d === 3) { nome = 'Canino Decíduo'; tipo = 'Canino Infantil'; }
+    else if (d === 4) { nome = 'Primeiro Molar Decíduo'; tipo = 'Molar Infantil'; }
+    else if (d === 5) { nome = 'Segundo Molar Decíduo'; tipo = 'Molar Infantil'; }
+  }
+
+  return { nome: `${nome} ${lado}`, arcada, lado, tipo };
 };
 
-// Componente de Ilustração Anatômica de Dente Real em SVG com Notação e Tom Escuro Padrão
-const DenteAnatomicoSVG = ({ numero, status, corHex, tamanho = 54 }: { numero: number; status: StatusDente; corHex: string; tamanho?: number }) => {
+// ============================================================================
+// GERADOR PROCEDURAL DE GEOMETRIA 3D DE DENTES ANATÔMICOS (THREE.JS)
+// ============================================================================
+const criarGeometriaDente3D = (numero: number) => {
   const d = numero % 10;
-  const isSuperior = numero >= 11 && numero <= 28;
+  const isSuperior = (numero >= 11 && numero <= 28) || (numero >= 51 && numero <= 65);
+  const group = new THREE.Group();
 
-  // Preenchimento escuro elegante de alta tecnologia (Sem cor branca!)
-  const rootFill = status === 'Ausente' ? '#1E293B' : status === 'Implante' ? '#0D9488' : '#0F172A';
-  const crownFill = status === 'Ausente' ? '#0F172A' : status === 'Coroa' ? '#4F46E5' : '#1E293B';
+  // Materiais PBR Anatômicos
+  const esmalteMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xfbf9f5,
+    roughness: 0.18,
+    metalness: 0.05,
+    transmission: 0.12,
+    ior: 1.5,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.1
+  });
 
-  // Dente tipo Molar (6, 7, 8)
-  if (d >= 6) {
-    return (
-      <svg width={tamanho} height={tamanho * 1.3} viewBox="0 0 100 130" fill="none" className="transition-all duration-300">
-        {/* Raízes Molares */}
-        <path
-          d={isSuperior ? "M25 65 L20 120 C18 125, 32 125, 35 120 L45 70 L55 70 L65 120 C68 125, 82 125, 80 120 L75 65 Z" : "M25 65 L20 10 C18 5, 32 5, 35 10 L45 60 L55 60 L65 10 C68 5, 82 5, 80 10 L75 65 Z"}
-          fill={rootFill}
-          stroke={corHex}
-          strokeWidth="3.5"
-        />
-        {/* Coroa Molar Multicúspide */}
-        <rect
-          x="15"
-          y="40"
-          width="70"
-          height="45"
-          rx="12"
-          fill={crownFill}
-          stroke={corHex}
-          strokeWidth="4"
-        />
-        {/* Cúspides Ocusal */}
-        <path d="M20 40 Q 35 28, 50 40 Q 65 28, 80 40" stroke={corHex} strokeWidth="3" fill="none" />
-        <circle cx="50" cy="62" r="10" fill={corHex} opacity="0.35" />
-      </svg>
-    );
+  const raizMaterial = new THREE.MeshStandardMaterial({
+    color: 0xd9c2a3,
+    roughness: 0.65,
+    metalness: 0.0
+  });
+
+  const polpaMaterial = new THREE.MeshStandardMaterial({
+    color: 0xbe123c,
+    emissive: 0x881337,
+    roughness: 0.3
+  });
+
+  const dentinaMaterial = new THREE.MeshStandardMaterial({
+    color: 0xe6c896,
+    roughness: 0.5,
+    transparent: true,
+    opacity: 0.85
+  });
+
+  // 1. INCISIVOS (Central e Lateral: 1, 2)
+  if (d === 1 || d === 2) {
+    // Coroa em pá/cinzel
+    const coroaGeo = new THREE.BoxGeometry(0.8, 1.2, 0.5, 8, 8, 8);
+    // Suavizar topo e bordo incisal
+    const pos = coroaGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      let y = pos.getY(i);
+      let z = pos.getZ(i);
+      if (y > 0.3) {
+        pos.setZ(i, z * 0.4); // afinar margem incisal
+      }
+    }
+    coroaGeo.computeVertexNormals();
+    const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
+    coroaMesh.position.y = isSuperior ? 0.6 : -0.6;
+    coroaMesh.name = 'coroa';
+    group.add(coroaMesh);
+
+    // Raiz única cônica
+    const raizGeo = new THREE.ConeGeometry(0.38, 1.6, 16);
+    const raizMesh = new THREE.Mesh(raizGeo, raizMaterial);
+    raizMesh.position.y = isSuperior ? 1.8 : -1.8;
+    raizMesh.rotation.x = isSuperior ? 0 : Math.PI;
+    raizMesh.name = 'raiz';
+    group.add(raizMesh);
+
+    // Polpa/Canal radicular interno
+    const polpaGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.2, 8);
+    const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
+    polpaMesh.position.y = isSuperior ? 1.1 : -1.1;
+    polpaMesh.name = 'polpa';
+    group.add(polpaMesh);
+  }
+  // 2. CANINOS (3)
+  else if (d === 3) {
+    // Coroa com cúspide pontiaguda e crista central
+    const coroaGeo = new THREE.ConeGeometry(0.55, 1.4, 16);
+    const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
+    coroaMesh.position.y = isSuperior ? 0.7 : -0.7;
+    coroaMesh.rotation.x = isSuperior ? Math.PI : 0;
+    coroaMesh.name = 'coroa';
+    group.add(coroaMesh);
+
+    // Raiz única longa e robusta
+    const raizGeo = new THREE.ConeGeometry(0.42, 2.0, 16);
+    const raizMesh = new THREE.Mesh(raizGeo, raizMaterial);
+    raizMesh.position.y = isSuperior ? 2.1 : -2.1;
+    raizMesh.rotation.x = isSuperior ? 0 : Math.PI;
+    raizMesh.name = 'raiz';
+    group.add(raizMesh);
+
+    const polpaGeo = new THREE.CylinderGeometry(0.09, 0.02, 2.6, 8);
+    const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
+    polpaMesh.position.y = isSuperior ? 1.3 : -1.3;
+    polpaMesh.name = 'polpa';
+    group.add(polpaMesh);
+  }
+  // 3. PRÉ-MOLARES (4, 5)
+  else if (d === 4 || d === 5) {
+    // Coroa bicúspide ovalada
+    const coroaGeo = new THREE.CylinderGeometry(0.55, 0.48, 1.2, 16);
+    const pos = coroaGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      let y = pos.getY(i);
+      let x = pos.getX(i);
+      if (y > 0.4) {
+        // Criar sulco oclusal central e 2 cúspides
+        pos.setY(i, y - Math.abs(x) * 0.25);
+      }
+    }
+    coroaGeo.computeVertexNormals();
+    const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
+    coroaMesh.position.y = isSuperior ? 0.6 : -0.6;
+    coroaMesh.name = 'coroa';
+    group.add(coroaMesh);
+
+    // Raízes
+    const raiz1Geo = new THREE.ConeGeometry(0.32, 1.7, 12);
+    const raiz1 = new THREE.Mesh(raiz1Geo, raizMaterial);
+    raiz1.position.set(0.12, isSuperior ? 1.8 : -1.8, 0);
+    raiz1.rotation.x = isSuperior ? 0 : Math.PI;
+    raiz1.name = 'raiz';
+    group.add(raiz1);
+
+    const polpaGeo = new THREE.CylinderGeometry(0.08, 0.02, 2.2, 8);
+    const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
+    polpaMesh.position.y = isSuperior ? 1.1 : -1.1;
+    polpaMesh.name = 'polpa';
+    group.add(polpaMesh);
+  }
+  // 4. MOLARES (6, 7, 8)
+  else {
+    // Coroa molar larga quadricúspide com mesa oclusal e sulcos
+    const coroaGeo = new THREE.BoxGeometry(1.2, 1.1, 1.1, 12, 12, 12);
+    const pos = coroaGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      let y = pos.getY(i);
+      let x = pos.getX(i);
+      let z = pos.getZ(i);
+      if (y > 0.3) {
+        // Anatomia oclusal: 4 cúspides e fossa central
+        const distCenter = Math.sqrt(x * x + z * z);
+        pos.setY(i, y - (0.35 - Math.min(0.3, distCenter * 0.4)));
+      }
+    }
+    coroaGeo.computeVertexNormals();
+    const coroaMesh = new THREE.Mesh(coroaGeo, esmalteMaterial);
+    coroaMesh.position.y = isSuperior ? 0.55 : -0.55;
+    coroaMesh.name = 'coroa';
+    group.add(coroaMesh);
+
+    // 2 ou 3 Raízes Molares com furca
+    const numRaizes = isSuperior ? 3 : 2;
+    for (let r = 0; r < numRaizes; r++) {
+      const raizGeo = new THREE.ConeGeometry(0.28, 1.8, 12);
+      const raizMesh = new THREE.Mesh(raizGeo, raizMaterial);
+      const angle = (r / numRaizes) * Math.PI * 2;
+      const offsetX = Math.cos(angle) * 0.28;
+      const offsetZ = Math.sin(angle) * 0.28;
+      raizMesh.position.set(offsetX, isSuperior ? 1.9 : -1.9, offsetZ);
+      raizMesh.rotation.x = isSuperior ? (offsetZ * 0.2) : (Math.PI - offsetZ * 0.2);
+      raizMesh.rotation.z = -offsetX * 0.2;
+      raizMesh.name = 'raiz';
+      group.add(raizMesh);
+
+      // Canal por raiz
+      const polpaGeo = new THREE.CylinderGeometry(0.06, 0.015, 2.0, 8);
+      const polpaMesh = new THREE.Mesh(polpaGeo, polpaMaterial);
+      polpaMesh.position.set(offsetX * 0.7, isSuperior ? 1.2 : -1.2, offsetZ * 0.7);
+      polpaMesh.name = 'polpa';
+      group.add(polpaMesh);
+    }
   }
 
-  // Dente tipo Pré-Molar (4, 5)
-  if (d === 4 || d === 5) {
-    return (
-      <svg width={tamanho} height={tamanho * 1.3} viewBox="0 0 100 130" fill="none" className="transition-all duration-300">
-        <path
-          d={isSuperior ? "M30 65 L32 118 C30 125, 45 125, 48 118 L50 68 L68 118 C65 125, 78 125, 76 118 L70 65 Z" : "M30 65 L32 12 C30 5, 45 5, 48 12 L50 62 L68 12 C65 5, 78 5, 76 12 L70 65 Z"}
-          fill={rootFill}
-          stroke={corHex}
-          strokeWidth="3.5"
-        />
-        <rect
-          x="20"
-          y="42"
-          width="60"
-          height="42"
-          rx="10"
-          fill={crownFill}
-          stroke={corHex}
-          strokeWidth="4"
-        />
-        <path d="M25 42 Q 50 32, 75 42" stroke={corHex} strokeWidth="3" fill="none" />
-        <circle cx="50" cy="63" r="8" fill={corHex} opacity="0.35" />
-      </svg>
-    );
-  }
+  // Camada Interna de Dentina Anatômica
+  const dentinaGeo = new THREE.CylinderGeometry(0.35, 0.15, 1.8, 12);
+  const dentinaMesh = new THREE.Mesh(dentinaGeo, dentinaMaterial);
+  dentinaMesh.position.y = isSuperior ? 0.9 : -0.9;
+  dentinaMesh.name = 'dentina';
+  group.add(dentinaMesh);
 
-  // Canino (3)
-  if (d === 3) {
-    return (
-      <svg width={tamanho} height={tamanho * 1.3} viewBox="0 0 100 130" fill="none" className="transition-all duration-300">
-        <path
-          d={isSuperior ? "M35 65 L48 125 C47 128, 53 128, 52 125 L65 65 Z" : "M35 65 L48 5 C47 2, 53 2, 52 5 L65 65 Z"}
-          fill={rootFill}
-          stroke={corHex}
-          strokeWidth="3.5"
-        />
-        <path
-          d="M25 70 L50 32 L75 70 Z"
-          fill={crownFill}
-          stroke={corHex}
-          strokeWidth="4"
-          strokeLinejoin="round"
-        />
-        <circle cx="50" cy="58" r="7" fill={corHex} opacity="0.35" />
-      </svg>
-    );
-  }
+  return group;
+};
 
-  // Incisivos (1, 2)
+// ============================================================================
+// COMPONENTE CANVAS 3D INTERATIVO PRINCIPAL (THREE.JS WEBGL)
+// ============================================================================
+const Tooth3DCanvas: React.FC<{
+  denteNumero: number;
+  denteInfo?: DenteInfo;
+  modoArcada: ModoVisualizacaoArcada;
+  mostrarInterno?: boolean;
+  dentesData: Record<number, DenteInfo>;
+  darkMode?: boolean;
+  faceAngulo?: string;
+}> = ({
+  denteNumero,
+  denteInfo,
+  modoArcada,
+  mostrarInterno = false,
+  dentesData,
+  darkMode = true,
+  faceAngulo
+}) => {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const mainGroupRef = useRef<THREE.Group | null>(null);
+  const isDraggingRef = useRef(false);
+  const previousMousePositionRef = useRef({ x: 0, y: 0 });
+
+  // Renderização e Animação 3D
+  useEffect(() => {
+    if (!mountRef.current) return;
+    const width = mountRef.current.clientWidth || 500;
+    const height = mountRef.current.clientHeight || 450;
+
+    // 1. Cenário e Câmera
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+    scene.background = new THREE.Color(darkMode ? 0x030712 : 0xf8fafc);
+
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    cameraRef.current = camera;
+
+    // 2. Renderer com antialiasing e sombras de alta qualidade
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    rendererRef.current = renderer;
+
+    mountRef.current.innerHTML = '';
+    mountRef.current.appendChild(renderer.domElement);
+
+    // 3. Iluminação de Estúdio Dental Profissional
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    keyLight.position.set(5, 8, 10);
+    keyLight.castShadow = true;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x14b8a6, 0.8);
+    fillLight.position.set(-8, -4, -6);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.PointLight(0x38bdf8, 1.5, 20);
+    rimLight.position.set(0, 5, -8);
+    scene.add(rimLight);
+
+    // 4. Construção dos Dentes no Espaço 3D conforme o Modo
+    const mainGroup = new THREE.Group();
+    mainGroupRef.current = mainGroup;
+    scene.add(mainGroup);
+
+    if (modoArcada === 'individual') {
+      // Modo Dente Único Ampliado
+      const dente3D = criarGeometriaDente3D(denteNumero);
+      
+      // Aplicar Overlays Clínicos 3D sobre o modelo
+      const status = denteInfo?.status || 'Saudável';
+      if (status === 'Cárie') {
+        const carieGeo = new THREE.SphereGeometry(0.25, 12, 12);
+        const carieMat = new THREE.MeshStandardMaterial({ color: 0x881337, roughness: 0.8 });
+        const carieMesh = new THREE.Mesh(carieGeo, carieMat);
+        carieMesh.position.set(0, 0.4, 0.25);
+        dente3D.add(carieMesh);
+      } else if (status === 'Restaurado') {
+        const resinaGeo = new THREE.BoxGeometry(0.4, 0.2, 0.4);
+        const resinaMat = new THREE.MeshPhysicalMaterial({ color: 0x38bdf8, roughness: 0.1, metalness: 0.2 });
+        const resinaMesh = new THREE.Mesh(resinaGeo, resinaMat);
+        resinaMesh.position.set(0, 0.5, 0);
+        dente3D.add(resinaMesh);
+      } else if (status === 'Coroa') {
+        const coroaGeo = new THREE.CylinderGeometry(0.65, 0.6, 1.2, 16);
+        const coroaMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.2, metalness: 0.8 });
+        const coroaCap = new THREE.Mesh(coroaGeo, coroaMat);
+        coroaCap.position.set(0, 0.5, 0);
+        dente3D.add(coroaCap);
+      } else if (status === 'Implante') {
+        const parafusoGeo = new THREE.CylinderGeometry(0.35, 0.2, 1.8, 12);
+        const parafusoMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.95, roughness: 0.15 });
+        const parafusoMesh = new THREE.Mesh(parafusoGeo, parafusoMat);
+        parafusoMesh.position.set(0, -1.2, 0);
+        dente3D.add(parafusoMesh);
+      }
+
+      // Aplicar Transparência no Modo de Corte Anatômico Interno
+      if (mostrarInterno) {
+        dente3D.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.name === 'coroa') {
+            child.material = new THREE.MeshPhysicalMaterial({
+              color: 0xfbf9f5,
+              transparent: true,
+              opacity: 0.35,
+              roughness: 0.1
+            });
+          }
+        });
+      }
+
+      mainGroup.add(dente3D);
+      camera.position.set(0, 0, 6);
+    } else {
+      // Modos Arcada Completa (Frontal, Maxila, Mandíbula, Decídua)
+      const dentesParaRenderizar =
+        modoArcada === 'maxila'
+          ? [...DENTES_PERMANENTES_MAXILA_DIREITA, ...DENTES_PERMANENTES_MAXILA_ESQUERDA]
+          : modoArcada === 'mandibula'
+          ? [...DENTES_PERMANENTES_MANDIBULA_DIREITA, ...DENTES_PERMANENTES_MANDIBULA_ESQUERDA]
+          : modoArcada === 'decidua'
+          ? [...DENTES_DECIDUOS_MAXILA_DIREITA, ...DENTES_DECIDUOS_MAXILA_ESQUERDA, ...DENTES_DECIDUOS_MANDIBULA_DIREITA, ...DENTES_DECIDUOS_MANDIBULA_ESQUERDA]
+          : [
+              ...DENTES_PERMANENTES_MAXILA_DIREITA,
+              ...DENTES_PERMANENTES_MAXILA_ESQUERDA,
+              ...DENTES_PERMANENTES_MANDIBULA_DIREITA,
+              ...DENTES_PERMANENTES_MANDIBULA_ESQUERDA
+            ];
+
+      dentesParaRenderizar.forEach((num) => {
+        const dente3D = criarGeometriaDente3D(num);
+        const info = dentesData[num];
+        const status = info?.status || 'Saudável';
+
+        // Disposição em curva anatômica de parábola (Arcada Dental)
+        const isUpper = (num >= 11 && num <= 28) || (num >= 51 && num <= 65);
+        const isRight = (num >= 11 && num <= 18) || (num >= 41 && num <= 48) || (num >= 51 && num <= 55) || (num >= 81 && num <= 85);
+        const posInSeq = num % 10;
+
+        const angleStep = 0.22;
+        const angle = (isRight ? -posInSeq : posInSeq) * angleStep;
+        const radius = 5.5;
+        const x = Math.sin(angle) * radius;
+        const z = (Math.cos(angle) - 1) * radius;
+        const y = isUpper ? 1.8 : -1.8;
+
+        dente3D.position.set(x, y, z);
+        dente3D.rotation.y = angle;
+        dente3D.scale.set(0.65, 0.65, 0.65);
+        dente3D.userData = { numero: num };
+
+        // Colorir de acordo com o status clínico
+        if (status !== 'Saudável') {
+          const hex = CORES_STATUS_CLINICO[status]?.hex || '#10B981';
+          dente3D.traverse((child) => {
+            if (child instanceof THREE.Mesh && child.name === 'coroa') {
+              child.material = new THREE.MeshStandardMaterial({ color: new THREE.Color(hex), roughness: 0.3 });
+            }
+          });
+        }
+
+        mainGroup.add(dente3D);
+      });
+
+      if (modoArcada === 'maxila') {
+        camera.position.set(0, 8, 2);
+        camera.lookAt(0, 0, 0);
+      } else if (modoArcada === 'mandibula') {
+        camera.position.set(0, -8, 2);
+        camera.lookAt(0, 0, 0);
+      } else {
+        camera.position.set(0, 0, 11);
+        camera.lookAt(0, 0, 0);
+      }
+    }
+
+    // 5. Loop de Renderização Contínua
+    let animationFrameId: number;
+    const animate = () => {
+      animationFrameId = requestAnimationFrame(animate);
+      if (rendererRef.current && sceneRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      }
+    };
+    animate();
+
+    const handleResize = () => {
+      if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
+      const w = mountRef.current.clientWidth;
+      const h = mountRef.current.clientHeight;
+      cameraRef.current.aspect = w / h;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(w, h);
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [denteNumero, modoArcada, mostrarInterno, dentesData, darkMode]);
+
+  // Posicionamento Dinâmico de Câmera por Face Selecionada
+  useEffect(() => {
+    if (!cameraRef.current || modoArcada !== 'individual') return;
+    const cam = cameraRef.current;
+    if (faceAngulo === 'OCLUSAL') {
+      cam.position.set(0, 4.5, 0.1);
+      cam.lookAt(0, 0, 0);
+    } else if (faceAngulo === 'VESTIBULAR') {
+      cam.position.set(0, 0, 5.5);
+      cam.lookAt(0, 0, 0);
+    } else if (faceAngulo === 'PALATINA' || faceAngulo === 'LINGUAL') {
+      cam.position.set(0, 0, -5.5);
+      cam.lookAt(0, 0, 0);
+    } else if (faceAngulo === 'MESIAL') {
+      cam.position.set(-5.5, 0, 0);
+      cam.lookAt(0, 0, 0);
+    } else if (faceAngulo === 'DISTAL') {
+      cam.position.set(5.5, 0, 0);
+      cam.lookAt(0, 0, 0);
+    }
+  }, [faceAngulo, modoArcada]);
+
+  // Controle de Rotação Manual com o Mouse
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDraggingRef.current = true;
+    previousMousePositionRef.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !mainGroupRef.current) return;
+    const deltaX = e.clientX - previousMousePositionRef.current.x;
+    const deltaY = e.clientY - previousMousePositionRef.current.y;
+
+    mainGroupRef.current.rotation.y += deltaX * 0.01;
+    mainGroupRef.current.rotation.x += deltaY * 0.01;
+
+    previousMousePositionRef.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
+
   return (
-    <svg width={tamanho} height={tamanho * 1.3} viewBox="0 0 100 130" fill="none" className="transition-all duration-300">
-      <path
-        d={isSuperior ? "M35 65 L48 122 C47 126, 53 126, 52 122 L65 65 Z" : "M35 65 L48 8 C47 4, 53 4, 52 8 L65 65 Z"}
-        fill={rootFill}
-        stroke={corHex}
-        strokeWidth="3.5"
-      />
-      <rect
-        x="22"
-        y="42"
-        width="56"
-        height="40"
-        rx="6"
-        fill={crownFill}
-        stroke={corHex}
-        strokeWidth="4"
-      />
-      <circle cx="50" cy="62" r="7" fill={corHex} opacity="0.35" />
-    </svg>
+    <div
+      ref={mountRef}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      className="w-full h-full min-h-[380px] sm:min-h-[480px] cursor-grab active:cursor-grabbing relative overflow-hidden rounded-2xl"
+    >
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-[11px] font-extrabold text-teal-400">
+        <Sparkles className="w-3.5 h-3.5 text-teal-400 animate-pulse" />
+        <span>ENGINE 3D WEBGL REAL-TIME</span>
+      </div>
+    </div>
   );
 };
 
+// ============================================================================
+// COMPONENTE PRINCIPAL ODONTOGRAMA PROFISSIONAL 3D
+// ============================================================================
 export const Odontograma: React.FC<OdontogramaProps> = ({
-  pacienteNome,
+  pacienteNome = 'Paciente',
   dentes,
-  onUpdateDente
+  onUpdateDente,
+  radiografias = [],
+  fotografias = [],
+  procedimentos = [],
+  onAddProcedimento,
+  darkMode = true
 }) => {
-  const [denteSelecionado, setDenteSelecionado] = useState<number | null>(16);
-  const [denteModalAmpliado, setDenteModalAmpliado] = useState<number | null>(null);
-  const [statusTemp, setStatusTemp] = useState<StatusDente>('Saudável');
-  const [faceSelecionada, setFaceSelecionada] = useState<string>('Oclusal/Incisal');
-  const [obsTemp, setObsTemp] = useState<string>('');
-  const [salvoSucesso, setSalvoSucesso] = useState<boolean>(false);
+  const [modoArcada, setModoArcada] = useState<ModoVisualizacaoArcada>('frontal');
+  const [denteSelecionadoNum, setDenteSelecionadoNum] = useState<number>(16);
+  const [superficieSelecionada, setSuperficieSelecionada] = useState<SuperficieDente | null>('Oclusal');
+  const [faceAngulo, setFaceAngulo] = useState<string>('VESTIBULAR');
+  const [mostrarInterno, setMostrarInterno] = useState<boolean>(false);
+  const [assistenteIAAberto, setAssistenteIAAberto] = useState<boolean>(false);
 
-  // Lista de Procedimentos do Prontuário Dental Ondoctor
-  const [procedimentosProntuario, setProcedimentosProntuario] = useState<ProcedimentoOdontograma[]>([
-    {
-      id: 'p-1',
-      denteNumero: 16,
-      face: 'Oclusal + Mesial',
-      procedimento: 'Restauração em Resina Fotopolimerizável',
-      data: '21/08/2026',
-      dentista: 'Dra. Patricia Medeiros',
-      status: 'Concluído',
-      valor: 280
-    },
-    {
-      id: 'p-2',
-      denteNumero: 24,
-      face: 'Completa',
-      procedimento: 'Tratamento de Canal (Endodontia)',
-      data: '21/08/2026',
-      dentista: 'Dra. Patricia Medeiros',
-      status: 'Em Andamento',
-      valor: 650
-    },
-    {
-      id: 'p-3',
-      denteNumero: 36,
-      face: 'Raio X + Implante',
-      procedimento: 'Instalação de Implante Titânio 4.0mm',
-      data: '20/08/2026',
-      dentista: 'Dr. Carlos Eduardo',
+  // Form State do Painel Lateral
+  const [statusNovoInput, setStatusNovoInput] = useState<StatusDente>('Saudável');
+  const [observacoesInput, setObservacoesInput] = useState<string>('');
+  const [novoProcDescInput, setNovoProcDescInput] = useState<string>('');
+  const [novoProcValorInput, setNovoProcValorInput] = useState<number>(250);
+
+  const denteInfoAtual = useMemo(() => dentes[denteSelecionadoNum] || { numero: denteSelecionadoNum, status: 'Saudável' }, [dentes, denteSelecionadoNum]);
+  const infoAnatomica = useMemo(() => getNomeAnatomicoDente(denteSelecionadoNum), [denteSelecionadoNum]);
+
+  // Sincronizar inputs ao mudar de dente
+  useEffect(() => {
+    if (denteInfoAtual) {
+      setStatusNovoInput(denteInfoAtual.status || 'Saudável');
+      setObservacoesInput(denteInfoAtual.observacoes || '');
+    }
+  }, [denteSelecionadoNum, denteInfoAtual]);
+
+  const handleSalvarCondicaoDente = () => {
+    onUpdateDente(denteSelecionadoNum, statusNovoInput, observacoesInput);
+  };
+
+  const handleAdicionarProcedimentoDente = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoProcDescInput || !onAddProcedimento) return;
+    onAddProcedimento({
+      pacienteId: 'pac-atual',
+      denteNumero: denteSelecionadoNum,
+      descricao: `${novoProcDescInput} (Dente #${denteSelecionadoNum})`,
+      valor: novoProcValorInput,
       status: 'Planejado',
-      valor: 1800
-    }
-  ]);
-
-  const handleSelectDente = (num: number) => {
-    setDenteSelecionado(num);
-    setDenteModalAmpliado(num);
-    const info = dentes[num];
-    if (info) {
-      setStatusTemp(info.status);
-      setObsTemp(info.observacoes || '');
-    } else {
-      setStatusTemp('Saudável');
-      setObsTemp('');
-    }
+      dataCriacao: new Date().toISOString().split('T')[0]
+    });
+    setNovoProcDescInput('');
   };
 
-  const handleSalvarDente = () => {
-    if (denteSelecionado !== null) {
-      onUpdateDente(denteSelecionado, statusTemp, obsTemp);
-
-      if (statusTemp !== 'Saudável') {
-        const novoProc: ProcedimentoOdontograma = {
-          id: `p-${Date.now()}`,
-          denteNumero: denteSelecionado,
-          face: faceSelecionada,
-          procedimento: `${statusTemp} - Dente ${denteSelecionado}`,
-          data: new Date().toLocaleDateString('pt-BR'),
-          dentista: 'Dra. Patricia Medeiros',
-          status: 'Em Andamento',
-          valor: statusTemp === 'Implante' ? 1800 : statusTemp === 'Tratamento Canal' ? 650 : 250
-        };
-        setProcedimentosProntuario((prev) => [novoProc, ...prev]);
-      }
-
-      setSalvoSucesso(true);
-      setTimeout(() => setSalvoSucesso(false), 2500);
-    }
-  };
-
-  const handleDeleteProcedimento = (id: string) => {
-    setProcedimentosProntuario((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  // Estatísticas do Odontograma Buco-Dental
-  const totalCaries = Object.values(dentes).filter((d) => d.status === 'Cárie').length;
-  const totalCanais = Object.values(dentes).filter((d) => d.status === 'Tratamento Canal').length;
-  const totalImplantes = Object.values(dentes).filter((d) => d.status === 'Implante').length;
-  const totalRestaurados = Object.values(dentes).filter((d) => d.status === 'Restaurado').length;
-  const valorTotalOrcamento = procedimentosProntuario.reduce((acc, p) => acc + p.valor, 0);
-
-  const renderDenteCard = (num: number) => {
-    const info = dentes[num] || { numero: num, status: 'Saudável' };
-    const cor = statusCores[info.status] || statusCores['Saudável'];
-    const isSelected = denteSelecionado === num;
-
-    return (
-      <button
-        key={num}
-        onClick={() => handleSelectDente(num)}
-        className={`flex flex-col items-center justify-between p-2 rounded-2xl border-2 transition-all cursor-pointer min-w-[56px] min-h-[105px] relative group ${
-          cor.bg
-        } ${isSelected ? 'border-teal-500 ring-2 ring-teal-400 scale-108 shadow-xl z-10' : cor.border}`}
-      >
-        <span className="text-[11px] font-extrabold text-slate-300">{num}</span>
-
-        {/* Desenho Anatômico do Dente Real com Tom Escuro */}
-        <div className="my-0.5 flex items-center justify-center">
-          <DenteAnatomicoSVG numero={num} status={info.status} corHex={cor.hex} tamanho={38} />
-        </div>
-
-        {/* Notação de Faces do Dente no Padrão Ondoctor Escuro */}
-        <div className="w-full grid grid-cols-3 gap-0.5 my-1 text-[8px] font-extrabold text-center">
-          <span className="bg-slate-900/90 text-slate-300 rounded border border-slate-700/50">V</span>
-          <span className="bg-slate-900/90 text-teal-300 rounded border border-slate-700/50">O</span>
-          <span className="bg-slate-900/90 text-slate-300 rounded border border-slate-700/50">L</span>
-        </div>
-
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${cor.badge} truncate max-w-[52px]`}>
-          {info.status.substring(0, 5)}
-        </span>
-
-        <div className="absolute inset-0 bg-teal-950/80 opacity-0 group-hover:opacity-100 rounded-2xl flex items-center justify-center transition-opacity">
-          <ZoomIn className="w-5 h-5 text-teal-300" />
-        </div>
-      </button>
-    );
-  };
+  // Exames e Fotos Relacionadas ao Dente Selecionado
+  const radiografiasDente = radiografias.filter((r) => r.titulo.includes(denteSelecionadoNum.toString()) || r.anotacoes?.includes(denteSelecionadoNum.toString()));
+  const fotografiasDente = fotografias.filter((f) => f.descricao?.includes(denteSelecionadoNum.toString()) || f.titulo?.includes(denteSelecionadoNum.toString()));
+  const procedimentosDente = procedimentos.filter((p) => p.denteNumero === denteSelecionadoNum);
 
   return (
-    <div className="space-y-6">
-      {/* 1. TOP HEADER PRONTUÁRIO DENTAL ONDOCTOR - TEMA ESCURO PADRÃO */}
-      <div className="p-6 rounded-3xl border border-slate-800 bg-slate-900 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className={`space-y-6 select-none ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+      
+      {/* 1. HEADER DO ODONTOGRAMA COM CONTROLES PRINCIPAIS */}
+      <div className={`p-6 rounded-3xl border shadow-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 ${
+        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
         <div>
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-md border border-teal-500/20">
-            Prontuário Odontológico Digital Ondoctor 2026
-          </span>
-          <h2 className="text-xl font-extrabold flex items-center gap-2 mt-1 text-white">
-            <Sparkles className="w-6 h-6 text-teal-400" /> Odontograma Buco-Maxilo & Ficha Clínica
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-md border border-teal-500/20">
+              Prontuário Odontológico 3D Realista
+            </span>
+            <span className="text-[10px] font-bold text-slate-400">Notação FDI / ISO 3950</span>
+          </div>
+          <h2 className="text-xl font-extrabold flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-teal-400" /> Odontograma 3D Anatômico & Interativo
           </h2>
           <p className="text-xs text-slate-400">
-            {pacienteNome ? `Prontuário clínico ativo do paciente: ${pacienteNome}` : 'Registro gráfico bucal, faces dentárias e plano de tratamento.'}
+            Modelos 3D realistas de cada dente da arcada para diagnóstico, plano de tratamento e análise clínica.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        {/* BARRAS DE SELEÇÃO DE MODOS DE ARCADA */}
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <div className="flex items-center gap-1 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
+            {(
+              [
+                { id: 'frontal', label: 'Frontal Arch' },
+                { id: 'maxila', label: 'Maxila' },
+                { id: 'mandibula', label: 'Mandíbula' },
+                { id: 'individual', label: 'Analisar 3D' },
+                { id: 'decidua', label: 'Decídua (Infantil)' }
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setModoArcada(m.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  modoArcada === m.id
+                    ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-lg shadow-teal-600/30'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setAssistenteIAAberto(true)}
+            className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 font-extrabold px-3.5 py-2.5 rounded-2xl text-xs flex items-center gap-1.5 border border-purple-500/30 transition-all cursor-pointer"
+          >
+            <Bot className="w-4 h-4 text-purple-400" /> Assistente IA
+          </button>
+
           <button
             onClick={() => window.print()}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2 rounded-2xl text-xs flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer shadow"
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2.5 rounded-2xl text-xs flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
           >
-            <Printer className="w-4 h-4 text-teal-400" /> Imprimir Prontuário (PDF)
-          </button>
-
-          <button
-            onClick={() => {
-              if (denteSelecionado) setDenteModalAmpliado(denteSelecionado);
-            }}
-            className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-extrabold px-4 py-2 rounded-2xl text-xs flex items-center gap-2 shadow-lg shadow-teal-600/25 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> + Adicionar Tratamento
+            <Printer className="w-4 h-4 text-teal-400" /> Exportar Relatório
           </button>
         </div>
       </div>
 
-      {/* 2. KPIS RESUMO DA SAÚDE BUCAL DO PACIENTE - TEMA ESCURO */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900 shadow-xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cáries Ativas</span>
-            <h4 className="text-lg font-extrabold text-rose-400 mt-0.5">{totalCaries} Dente(s)</h4>
-          </div>
-          <div className="p-2.5 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20">
-            <ShieldAlert className="w-4 h-4" />
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900 shadow-xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Endodontia (Canal)</span>
-            <h4 className="text-lg font-extrabold text-amber-400 mt-0.5">{totalCanais} Tratado(s)</h4>
-          </div>
-          <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-            <Activity className="w-4 h-4" />
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900 shadow-xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Implantes</span>
-            <h4 className="text-lg font-extrabold text-teal-400 mt-0.5">{totalImplantes} Osseointegrado(s)</h4>
-          </div>
-          <div className="p-2.5 bg-teal-500/10 text-teal-400 rounded-xl border border-teal-500/20">
-            <Sparkles className="w-4 h-4" />
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900 shadow-xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Restaurados</span>
-            <h4 className="text-lg font-extrabold text-sky-400 mt-0.5">{totalRestaurados} Resina/Amálgama</h4>
-          </div>
-          <div className="p-2.5 bg-sky-500/10 text-sky-400 rounded-xl border border-sky-500/20">
-            <CheckCircle2 className="w-4 h-4" />
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900 shadow-xl flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Orçamento Estimado</span>
-            <h4 className="text-lg font-extrabold text-emerald-400 mt-0.5">R$ {valorTotalOrcamento.toLocaleString('pt-BR')}</h4>
-          </div>
-          <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
-            <DollarSign className="w-4 h-4" />
-          </div>
-        </div>
-      </div>
-
-      {/* 3. LEGENDA DE CONDIÇÕES CLÍNICAS ONDOCTOR - TEMA ESCURO */}
-      <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900 shadow-xl flex flex-wrap items-center justify-center gap-3 text-xs">
-        {Object.entries(statusCores).map(([st, c]) => (
-          <div key={st} className="flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-xl border border-slate-800">
-            <span className="w-3 h-3 rounded-full border" style={{ backgroundColor: c.hex, borderColor: c.hex }} />
-            <span className="font-bold text-slate-300 text-[11px]">{st}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* 4. GRADE ANATÔMICA DA ARCADA DENTAL (MAXILAR E MANDIBULAR) - TEMA ESCURO */}
-      <div className="p-6 rounded-3xl border border-slate-800 bg-slate-900 text-white shadow-xl space-y-8">
-
-        {/* ARCADA SUPERIOR (Quadrantes 1 e 2) */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
-              1. Arcada Maxilar Superior (Notação FDI 18 a 28)
-            </h3>
-            <span className="text-[11px] text-slate-400">Clique para selecionar a face dental ou dente</span>
-          </div>
-
-          <div className="flex justify-center gap-1.5 sm:gap-2.5 overflow-x-auto pb-2 scrollbar-none">
-            {/* Quadrante 1 (18-11) */}
-            <div className="flex gap-1.5 sm:gap-2 bg-slate-950/70 p-2 rounded-2xl border border-slate-800/80 shadow-inner">
-              {quadrant1.map(renderDenteCard)}
-            </div>
-
-            <div className="w-1 bg-teal-500/40 rounded-full my-1"></div>
-
-            {/* Quadrante 2 (21-28) */}
-            <div className="flex gap-1.5 sm:gap-2 bg-slate-950/70 p-2 rounded-2xl border border-slate-800/80 shadow-inner">
-              {quadrant2.map(renderDenteCard)}
-            </div>
-          </div>
-        </div>
-
-        {/* ARCADA INFERIOR (Quadrantes 4 e 3) */}
-        <div className="space-y-3 pt-2">
-          <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
-              2. Arcada Mandibular Inferior (Notação FDI 48 a 38)
-            </h3>
-            <span className="text-[11px] text-slate-400">Clique no dente para abrir o seletor de faces</span>
-          </div>
-
-          <div className="flex justify-center gap-1.5 sm:gap-2.5 overflow-x-auto pb-2 scrollbar-none">
-            {/* Quadrante 4 (48-41) */}
-            <div className="flex gap-1.5 sm:gap-2 bg-slate-950/70 p-2 rounded-2xl border border-slate-800/80 shadow-inner">
-              {quadrant4.map(renderDenteCard)}
-            </div>
-
-            <div className="w-1 bg-teal-500/40 rounded-full my-1"></div>
-
-            {/* Quadrante 3 (31-38) */}
-            <div className="flex gap-1.5 sm:gap-2 bg-slate-950/70 p-2 rounded-2xl border border-slate-800/80 shadow-inner">
-              {quadrant3.map(renderDenteCard)}
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 5. TABELA DE PROCEDIMENTOS DO PRONTUÁRIO ONDOCTOR - TEMA ESCURO */}
-      <div className="p-6 rounded-3xl border border-slate-800 bg-slate-900 text-white shadow-xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-          <div>
-            <h3 className="font-extrabold text-base flex items-center gap-2 text-teal-400">
-              <FileText className="w-5 h-5 text-teal-400" /> Prontuário de Procedimentos e Tratamentos Executados
-            </h3>
-            <p className="text-xs text-slate-400">Histórico de intervenções por dente e face no plano de tratamento do paciente.</p>
-          </div>
-
-          <span className="bg-teal-500/20 text-teal-300 font-extrabold text-xs px-3 py-1 rounded-full border border-teal-500/30">
-            {procedimentosProntuario.length} Procedimento(s)
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400 font-extrabold uppercase">
-                <th className="p-3">Data</th>
-                <th className="p-3">Dente #</th>
-                <th className="p-3">Face</th>
-                <th className="p-3">Procedimento / Tratamento</th>
-                <th className="p-3">Dentista Responsável</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Valor (R$)</th>
-                <th className="p-3 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/40">
-              {procedimentosProntuario.map((proc) => (
-                <tr key={proc.id} className="hover:bg-slate-800/50 transition-colors font-medium">
-                  <td className="p-3 text-slate-400 font-bold">{proc.data}</td>
-                  <td className="p-3">
-                    <span className="bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-md font-extrabold border border-teal-500/30">
-                      Dente #{proc.denteNumero}
-                    </span>
-                  </td>
-                  <td className="p-3 text-slate-300 font-bold">{proc.face || 'Completa'}</td>
-                  <td className="p-3 font-bold text-white">{proc.procedimento}</td>
-                  <td className="p-3 text-slate-300">{proc.dentista}</td>
-                  <td className="p-3">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                      proc.status === 'Concluído'
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                        : proc.status === 'Em Andamento'
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse'
-                        : 'bg-sky-500/20 text-sky-400 border-sky-500/30'
-                    }`}>
-                      {proc.status}
-                    </span>
-                  </td>
-                  <td className="p-3 font-extrabold text-emerald-400">R$ {proc.valor.toLocaleString('pt-BR')}</td>
-                  <td className="p-3 text-right">
-                    <button
-                      onClick={() => handleDeleteProcedimento(proc.id)}
-                      className="p-1.5 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded-xl transition-colors cursor-pointer"
-                      title="Remover do Prontuário"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* MODAL HD DE ANÁLISE DE DENTE AMPLIADO COM SELEÇÃO POR FACES - TEMA ESCURO PADRÃO */}
-      {denteModalAmpliado !== null && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-slate-800 bg-slate-900 text-white space-y-6 my-8">
+      {/* 2. LAYOUT PRINCIPAL EM DUAS COLUNAS: CANVAS 3D + PAINEL DE ANÁLISE */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* COLUNA ESQUERDA / CENTRAL (8 COLS): CANVAS 3D + ARCADA DENTÁRIA */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+          
+          <div className={`p-6 rounded-3xl border shadow-xl relative flex flex-col justify-between ${
+            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
             
-            {/* Header Modal Dente Ondoctor */}
-            <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-              <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-md border border-teal-500/20">
-                  Módulo de Faces e Diagnóstico Ondoctor
-                </span>
-                <h2 className="text-xl font-extrabold mt-1 text-teal-400">
-                  {getNomeAnatomicoDente(denteModalAmpliado)}
-                </h2>
+            {/* Header do Viewport 3D */}
+            <div className="flex items-center justify-between border-b border-slate-800/40 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                <h3 className="font-extrabold text-sm text-teal-400">
+                  {modoArcada === 'individual'
+                    ? `DENTE ${denteSelecionadoNum} — ${infoAnatomica.nome.toUpperCase()}`
+                    : `VISUALIZAÇÃO 3D DA ARCADA DENTÁRIA (${modoArcada.toUpperCase()})`}
+                </h3>
               </div>
-              <button
-                onClick={() => setDenteModalAmpliado(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-full bg-slate-800 cursor-pointer"
+
+              {modoArcada === 'individual' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setMostrarInterno(!mostrarInterno)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border cursor-pointer transition-all ${
+                      mostrarInterno
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                    }`}
+                    title="Visualizar corte anatômico interno: Esmalte -> Dentina -> Câmara Pulpar -> Canal"
+                  >
+                    <Layers className="w-3.5 h-3.5 text-rose-400" />
+                    <span>{mostrarInterno ? 'Modo Anatômico Interno (Ativo)' : 'Estrutura Interna'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setModoArcada('frontal')}
+                    className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl cursor-pointer"
+                    title="Voltar para Arcada Completa"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* CANVAS 3D INTERATIVO WEBGL THREE.JS */}
+            <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800/80 shadow-2xl">
+              <Tooth3DCanvas
+                denteNumero={denteSelecionadoNum}
+                denteInfo={denteInfoAtual}
+                modoArcada={modoArcada}
+                mostrarInterno={mostrarInterno}
+                dentesData={dentes}
+                darkMode={darkMode}
+                faceAngulo={faceAngulo}
+              />
+
+              {/* Botões Flutuantes de Angulação da Câmera por Face */}
+              {modoArcada === 'individual' && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-slate-800 flex items-center gap-1 shadow-2xl z-20">
+                  <span className="text-[10px] font-extrabold text-slate-400 px-2 uppercase">Faces:</span>
+                  {(['VESTIBULAR', 'PALATINA', 'OCLUSAL', 'MESIAL', 'DISTAL'] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFaceAngulo(f)}
+                      className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
+                        faceAngulo === f
+                          ? 'bg-teal-600 text-white shadow-md ring-1 ring-teal-400'
+                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* BARRA DE SELEÇÃO RÁPIDA DE DENTES NA ARCADA (NUMERAÇÃO FDI 3950) */}
+            {modoArcada !== 'decidua' ? (
+              <div className="mt-6 space-y-4 pt-4 border-t border-slate-800/40">
+                <div className="text-center text-xs font-extrabold text-slate-400 uppercase tracking-widest">
+                  Arcada Permanente (Notação FDI)
+                </div>
+
+                {/* Maxila Superior */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-teal-400 block text-center uppercase">Maxila Superior</span>
+                  <div className="flex justify-center items-center gap-1.5 flex-wrap">
+                    {[...DENTES_PERMANENTES_MAXILA_DIREITA, ...DENTES_PERMANENTES_MAXILA_ESQUERDA].map((num) => {
+                      const info = dentes[num];
+                      const st = info?.status || 'Saudável';
+                      const isSelected = denteSelecionadoNum === num;
+                      return (
+                        <button
+                          key={num}
+                          onClick={() => {
+                            setDenteSelecionadoNum(num);
+                            setModoArcada('individual');
+                          }}
+                          className={`w-9 h-11 rounded-xl border flex flex-col items-center justify-between p-1 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-teal-600 text-white border-teal-400 ring-2 ring-teal-400 scale-110 shadow-lg z-10'
+                              : darkMode
+                              ? 'bg-slate-950/70 border-slate-800 hover:border-teal-500/50'
+                              : 'bg-slate-100 border-slate-200 hover:border-teal-500'
+                          }`}
+                        >
+                          <span className="font-mono font-extrabold text-[11px]">{num}</span>
+                          <span
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: CORES_STATUS_CLINICO[st]?.hex || '#10B981' }}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Mandíbula Inferior */}
+                <div className="space-y-1 pt-2">
+                  <span className="text-[10px] font-bold text-sky-400 block text-center uppercase">Mandíbula Inferior</span>
+                  <div className="flex justify-center items-center gap-1.5 flex-wrap">
+                    {[...DENTES_PERMANENTES_MANDIBULA_DIREITA, ...DENTES_PERMANENTES_MANDIBULA_ESQUERDA].map((num) => {
+                      const info = dentes[num];
+                      const st = info?.status || 'Saudável';
+                      const isSelected = denteSelecionadoNum === num;
+                      return (
+                        <button
+                          key={num}
+                          onClick={() => {
+                            setDenteSelecionadoNum(num);
+                            setModoArcada('individual');
+                          }}
+                          className={`w-9 h-11 rounded-xl border flex flex-col items-center justify-between p-1 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-teal-600 text-white border-teal-400 ring-2 ring-teal-400 scale-110 shadow-lg z-10'
+                              : darkMode
+                              ? 'bg-slate-950/70 border-slate-800 hover:border-teal-500/50'
+                              : 'bg-slate-100 border-slate-200 hover:border-teal-500'
+                          }`}
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: CORES_STATUS_CLINICO[st]?.hex || '#10B981' }}
+                          />
+                          <span className="font-mono font-extrabold text-[11px]">{num}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Dentição Decídua Infantil */
+              <div className="mt-6 space-y-4 pt-4 border-t border-slate-800/40">
+                <div className="text-center text-xs font-extrabold text-amber-400 uppercase tracking-widest">
+                  Dentição Decídua Infantil (51 a 85)
+                </div>
+                <div className="flex justify-center items-center gap-2 flex-wrap">
+                  {[
+                    ...DENTES_DECIDUOS_MAXILA_DIREITA,
+                    ...DENTES_DECIDUOS_MAXILA_ESQUERDA,
+                    ...DENTES_DECIDUOS_MANDIBULA_DIREITA,
+                    ...DENTES_DECIDUOS_MANDIBULA_ESQUERDA
+                  ].map((num) => {
+                    const isSelected = denteSelecionadoNum === num;
+                    return (
+                      <button
+                        key={num}
+                        onClick={() => {
+                          setDenteSelecionadoNum(num);
+                          setModoArcada('individual');
+                        }}
+                        className={`w-9 h-11 rounded-xl border flex flex-col items-center justify-center font-extrabold text-xs transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-500 text-slate-950 border-amber-300 ring-2 ring-amber-400 scale-110 shadow-lg'
+                            : 'bg-slate-950/70 border-slate-800 hover:border-amber-400'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* COLUNA DIREITA (5 COLS): PAINEL LATERAL DE DIAGNÓSTICO DO DENTE */}
+        <div className="lg:col-span-5 xl:col-span-4 space-y-6">
+          
+          <div className={`p-6 rounded-3xl border shadow-xl space-y-6 ${
+            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            
+            {/* Header do Dente Selecionado */}
+            <div className="border-b border-slate-800/40 pb-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-lg border border-teal-500/20">
+                  Dente #{denteSelecionadoNum}
+                </span>
+                <span className="text-xs text-slate-400 font-bold">{infoAnatomica.tipo}</span>
+              </div>
+
+              <h3 className="text-lg font-extrabold text-white">{infoAnatomica.nome}</h3>
+              <p className="text-xs text-slate-400">{infoAnatomica.arcada}</p>
+            </div>
+
+            {/* Seletor do Status Clínico Principal */}
+            <div className="space-y-2">
+              <label className="block font-extrabold text-xs text-slate-300">Condição Clínica Atual</label>
+              <select
+                value={statusNovoInput}
+                onChange={(e) => setStatusNovoInput(e.target.value as StatusDente)}
+                className={`w-full p-3 rounded-2xl border text-xs font-extrabold cursor-pointer ${
+                  darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                }`}
               >
+                {Object.keys(CORES_STATUS_CLINICO).map((st) => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Seletor de Superfícies Atingidas */}
+            <div className="space-y-2">
+              <label className="block font-extrabold text-xs text-slate-300">Superfícies Atingidas (Faces)</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['Oclusal', 'Vestibular', 'Lingual', 'Palatina', 'Mesial', 'Distal', 'Cervical', 'Radicular'] as SuperficieDente[]).map((sup) => {
+                  const isSel = superficieSelecionada === sup;
+                  return (
+                    <button
+                      key={sup}
+                      onClick={() => setSuperficieSelecionada(sup)}
+                      className={`p-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer text-center ${
+                        isSel
+                          ? 'bg-teal-600 text-white border-teal-400 ring-2 ring-teal-400 shadow-md'
+                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {sup}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Observações Clínicas */}
+            <div className="space-y-2">
+              <label className="block font-extrabold text-xs text-slate-300">Observações Clínicas do Cirurgião</label>
+              <textarea
+                rows={3}
+                value={observacoesInput}
+                onChange={(e) => setObservacoesInput(e.target.value)}
+                placeholder="Ex: Restauração em resina composta na face oclusal com infiltração marginal discreta..."
+                className={`w-full p-3 rounded-2xl border text-xs font-medium resize-none ${
+                  darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                }`}
+              />
+            </div>
+
+            <button
+              onClick={handleSalvarCondicaoDente}
+              className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-extrabold p-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-600/25 cursor-pointer transition-all"
+            >
+              <Save className="w-4 h-4" /> Salvar Alteração no Prontuário
+            </button>
+
+            {/* Adicionar Procedimento Direto ao Dente */}
+            {onAddProcedimento && (
+              <form onSubmit={handleAdicionarProcedimentoDente} className="pt-4 border-t border-slate-800/40 space-y-3">
+                <span className="text-xs font-extrabold text-teal-400 block">+ Lançar Procedimento para o Dente #{denteSelecionadoNum}</span>
+                <input
+                  type="text"
+                  placeholder="Descrição (ex: Restauração Resina, Canal...)"
+                  value={novoProcDescInput}
+                  onChange={(e) => setNovoProcDescInput(e.target.value)}
+                  className={`w-full p-2.5 rounded-xl border text-xs font-medium ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="Valor (R$)"
+                    value={novoProcValorInput}
+                    onChange={(e) => setNovoProcValorInput(Number(e.target.value))}
+                    className={`w-1/2 p-2.5 rounded-xl border text-xs font-extrabold text-emerald-400 ${
+                      darkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  />
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-slate-800 hover:bg-slate-700 text-teal-300 font-bold p-2.5 rounded-xl text-xs cursor-pointer border border-slate-700"
+                  >
+                    + Adicionar
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Lista de Procedimentos do Dente */}
+            {procedimentosDente.length > 0 && (
+              <div className="pt-4 border-t border-slate-800/40 space-y-2">
+                <span className="text-xs font-extrabold text-teal-400 block">Procedimentos Planejados ({procedimentosDente.length})</span>
+                <div className="space-y-1.5">
+                  {procedimentosDente.map((p) => (
+                    <div key={p.id} className="p-2 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center text-xs">
+                      <span className="font-bold text-white">{p.descricao}</span>
+                      <span className="font-extrabold text-emerald-400">R$ {p.valor.toLocaleString('pt-BR')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Exames e Radiografias Relacionadas ao Dente */}
+            <div className="pt-4 border-t border-slate-800/40 space-y-3">
+              <span className="text-xs font-extrabold text-slate-300 flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-teal-400" /> Exames de Imagem do Dente #{denteSelecionadoNum} ({radiografiasDente.length + fotografiasDente.length})
+              </span>
+
+              {radiografiasDente.length > 0 || fotografiasDente.length > 0 ? (
+                <div className="space-y-2">
+                  {radiografiasDente.map((r) => (
+                    <div key={r.id} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-white block">{r.titulo}</span>
+                        <span className="text-[10px] text-slate-400">{r.data} • {r.tipo}</span>
+                      </div>
+                      <img src={r.imagemUrl} alt={r.titulo} className="w-10 h-10 object-cover rounded-lg border border-slate-700" />
+                    </div>
+                  ))}
+                  {fotografiasDente.map((f) => (
+                    <div key={f.id} className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-white block">{f.descricao}</span>
+                        <span className="text-[10px] text-slate-400">{f.data} • Foto Clínica</span>
+                      </div>
+                      <img src={f.imagemUrl} alt={f.descricao} className="w-10 h-10 object-cover rounded-lg border border-slate-700" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500 italic">Nenhum exame de imagem especificamente vinculado a este dente.</p>
+              )}
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* 3. LEGENDA CLÍNICA COLORIDA PADRÃO DO ODONTOGRAMA */}
+      <div className={`p-6 rounded-3xl border shadow-xl space-y-4 ${
+        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
+        <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
+          <h3 className="font-extrabold text-sm text-teal-400 flex items-center gap-2">
+            <Tag className="w-4 h-4" /> Legenda de Convenções e Estados Clínicos Odontológicos
+          </h3>
+          <span className="text-xs text-slate-400 font-bold">{Object.keys(CORES_STATUS_CLINICO).length} convenções</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {Object.entries(CORES_STATUS_CLINICO).map(([st, c]) => (
+            <div key={st} className="flex items-center gap-2 p-2 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs">
+              <span className="w-3.5 h-3.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: c.hex }} />
+              <span className="font-bold text-slate-200 text-[11px] truncate">{st}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. MODAL ASSISTENTE IA ODONTOLÓGICA */}
+      {assistenteIAAberto && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className={`rounded-3xl p-6 max-w-xl w-full shadow-2xl border space-y-4 ${
+            darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
+              <h3 className="text-base font-extrabold flex items-center gap-2 text-purple-400">
+                <Bot className="w-5 h-5 text-purple-400 animate-pulse" /> Assistente OdontoIA — Análise do Odontograma
+              </h3>
+              <button onClick={() => setAssistenteIAAberto(false)} className="text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              
-              {/* Ilustração HD Escura e Seletor de Faces Dentárias */}
-              <div className="bg-slate-950 p-6 rounded-3xl border-2 border-teal-500/40 flex flex-col items-center justify-center relative shadow-inner">
-                <DenteAnatomicoSVG
-                  numero={denteModalAmpliado}
-                  status={statusTemp}
-                  corHex={statusCores[statusTemp].hex}
-                  tamanho={120}
-                />
-
-                {/* Grade de Seleção de Faces */}
-                <div className="mt-4 w-full space-y-2">
-                  <span className="block text-[10px] font-extrabold uppercase text-center text-teal-400">
-                    Selecione a Face do Dente #{denteModalAmpliado}
-                  </span>
-
-                  <div className="grid grid-cols-5 gap-1.5 text-[11px] font-extrabold">
-                    {[
-                      { id: 'Vestibular', label: 'V (Vestib.)' },
-                      { id: 'Oclusal/Incisal', label: 'O (Oclus.)' },
-                      { id: 'Lingual/Palatina', label: 'L (Palat.)' },
-                      { id: 'Mesial', label: 'M (Mesial)' },
-                      { id: 'Distal', label: 'D (Distal)' }
-                    ].map((face) => (
-                      <button
-                        key={face.id}
-                        type="button"
-                        onClick={() => setFaceSelecionada(face.id)}
-                        className={`p-1.5 rounded-xl border text-center transition-all cursor-pointer ${
-                          faceSelecionada === face.id
-                            ? 'bg-teal-600 text-white border-teal-400 shadow-md'
-                            : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
-                        }`}
-                      >
-                        {face.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div className="space-y-3 text-xs">
+              <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-800/50 space-y-2">
+                <span className="font-bold text-purple-300 block">Resumo Automático de Patologias Registradas:</span>
+                <p className="text-slate-300">
+                  O odontograma do paciente <strong>{pacienteNome}</strong> registra patologias ativas que requerem intervenção clínica. Recomenda-se realizar raspagem periodontal e restaurações nas superfícies acometidas por cárie.
+                </p>
               </div>
 
-              {/* Seletor de Diagnóstico do Dente */}
-              <div className="space-y-4 text-xs">
-                <div>
-                  <label className="block font-bold text-slate-400 mb-1">Selecione o Diagnóstico / Condição:</label>
-                  <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-                    {(Object.keys(statusCores) as StatusDente[]).map((st) => (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => setStatusTemp(st)}
-                        className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-between transition-all cursor-pointer ${
-                          statusTemp === st
-                            ? 'bg-teal-600 text-white border-teal-400 shadow-md'
-                            : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
-                        }`}
-                      >
-                        <span>{st}</span>
-                        {statusTemp === st && <Check className="w-3.5 h-3.5" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-400 mb-1">Anotações do Tratamento / Procedimento:</label>
-                  <textarea
-                    rows={2}
-                    value={obsTemp}
-                    onChange={(e) => setObsTemp(e.target.value)}
-                    placeholder="Ex: Restauração foto-polimerizável na face Oclusal..."
-                    className="w-full p-2.5 rounded-xl border bg-slate-800 border-slate-700 text-white"
-                  />
-                </div>
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] flex items-start gap-2 font-bold">
+                <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  As informações fornecidas pela IA são exclusivamente auxiliares e não substituem a avaliação clínica soberana, exames complementares ou o diagnóstico do cirurgião-dentista.
+                </span>
               </div>
-
             </div>
 
-            {/* Footer Modal Actions */}
-            <div className="flex justify-between items-center pt-2 border-t border-slate-800/60">
+            <div className="flex justify-end pt-2 border-t border-slate-800/40">
               <button
-                type="button"
-                onClick={() => setDenteModalAmpliado(null)}
-                className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl font-bold text-xs cursor-pointer"
+                onClick={() => setAssistenteIAAberto(false)}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs cursor-pointer shadow-lg"
               >
-                Fechar
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  handleSalvarDente();
-                  setDenteModalAmpliado(null);
-                }}
-                className="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-teal-600/30 flex items-center gap-2 cursor-pointer"
-              >
-                <Save className="w-4 h-4" /> Salvar no Prontuário Ondoctor
+                Compreendido
               </button>
             </div>
-
-            {salvoSucesso && (
-              <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 p-2.5 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" /> Diagnóstico e procedimento salvos no prontuário com sucesso!
-              </div>
-            )}
-
           </div>
         </div>
       )}
+
     </div>
   );
 };

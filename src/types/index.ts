@@ -4,15 +4,48 @@ export type StatusDente =
   | 'Saudável'
   | 'Cárie'
   | 'Restaurado'
+  | 'Restauração Provisória'
   | 'Tratamento Canal'
   | 'Extração Indicada'
   | 'Ausente'
   | 'Implante'
   | 'Coroa'
+  | 'Faceta'
+  | 'Fratura'
+  | 'Desgaste'
+  | 'Mobilidade'
+  | 'Reabsorção'
   | 'Lesão'
-  | 'Mobilidade';
+  | 'Tratamento Periodontal'
+  | 'Selante'
+  | 'Dente Impactado'
+  | 'Outro';
 
 export type StatusProcedimento = 'Planejado' | 'Em Andamento' | 'Concluído';
+export type SuperficieDente = 'Oclusal' | 'Vestibular' | 'Lingual' | 'Palatina' | 'Mesial' | 'Distal' | 'Cervical' | 'Radicular';
+
+export interface CondicaoSuperficie {
+  superficie: SuperficieDente;
+  condicao: StatusDente;
+  observacao?: string;
+  data: string;
+}
+
+export interface HistoricoDenteItem {
+  id: string;
+  data: string;
+  profissional: string;
+  descricao: string;
+  tipo: 'Condição' | 'Procedimento' | 'Nota';
+}
+
+export interface Anotacao3D {
+  id: string;
+  tipo: 'ponto' | 'seta' | 'circulo' | 'texto';
+  posicao: [number, number, number];
+  texto: string;
+  cor?: string;
+}
 
 export interface Paciente {
   id: string;
