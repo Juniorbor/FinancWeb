@@ -50,19 +50,19 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <div className="inline-block relative">
             <img
               src={LOGO_BASE64}
-              alt="OdontoWeb - Seu Portal de Saúde Bucal"
+              alt="Finanças Pessoal - Gestão Financeira & Produção"
               className="w-28 h-28 object-contain rounded-full border-4 border-teal-500/60 shadow-2xl shadow-teal-500/50 bg-white p-1 mx-auto hover:scale-105 transition-transform duration-300"
             />
             <span className="absolute -bottom-1 right-0 bg-teal-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full border border-teal-300 shadow flex items-center gap-0.5">
-              <Sparkles className="w-3 h-3" /> 3D ACTIVE
+              <Sparkles className="w-3 h-3" /> ONLINE
             </span>
           </div>
           <div>
             <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1">
-              Odonto<span className="text-teal-400">Web</span>
+              Finanças <span className="text-teal-400">Pessoal</span>
             </h1>
             <p className="text-xs font-bold text-teal-400 uppercase tracking-widest mt-0.5">
-              Seu Portal de Saúde Bucal
+              Gestão Financeira & Produção
             </p>
           </div>
         </div>

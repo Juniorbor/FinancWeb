@@ -1,9 +1,6 @@
 import React from 'react';
 import {
   Activity,
-  Calendar,
-  Users,
-  Bot,
   DollarSign,
   BarChart3,
   Settings,
@@ -45,10 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity },
-    { id: 'pacientes', label: 'Pacientes', icon: Users, badge: badgeCounts?.pacientes },
-    { id: 'agenda', label: 'Agenda', icon: Calendar, badge: badgeCounts?.consultasHoje },
     { id: 'producao', label: 'Produção', icon: FileSpreadsheet },
-    { id: 'ia', label: 'OdontoIA Assistente', icon: Bot, isHighlight: true },
     { id: 'financeiro', label: 'Financeiro', icon: DollarSign, badge: badgeCounts?.pendentes ? `! ${badgeCounts.pendentes}` : undefined },
     { id: 'relatorios', label: 'Relatórios', icon: BarChart3 },
     { id: 'configuracoes', label: 'Configurações', icon: Settings },
@@ -88,16 +82,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <img
               src={LOGO_BASE64}
-              alt="OdontoWeb Logo"
+              alt="Finanças Pessoal Logo"
               className="w-11 h-11 object-contain rounded-full border-2 border-teal-500/50 shadow-md shadow-teal-500/20 shrink-0 bg-white p-0.5"
             />
             {(!isCollapsed || isMobileOpen) && (
               <div className="transition-opacity duration-300">
-                <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
-                  Odonto<span className="text-teal-400">Web</span>
+                <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
+                  Finanças <span className="text-teal-400">Pessoal</span>
                 </span>
                 <span className="text-[9px] font-bold text-teal-400 block -mt-1 uppercase tracking-wider">
-                  Seu Portal de Saúde Bucal
+                  Gestão Financeira & Produção
                 </span>
               </div>
             )}
@@ -138,17 +132,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-bold transition-all duration-200 cursor-pointer min-h-[44px] ${
                     isActive
                       ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-md shadow-teal-600/20'
-                      : item.isHighlight
-                      ? darkMode
-                        ? 'bg-teal-950/40 text-teal-400 hover:bg-teal-900/60 border border-teal-800/40'
-                        : 'bg-teal-50 text-teal-700 hover:bg-teal-100/80 border border-teal-200/60'
                       : darkMode
                       ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                   }`}
                 >
                   <Icon className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 ${
-                    isActive ? 'text-white' : item.isHighlight ? 'text-teal-500' : 'text-slate-400 group-hover:text-teal-500'
+                    isActive ? 'text-white' : 'text-slate-400 group-hover:text-teal-500'
                   }`} />
 
                   {(!isCollapsed || isMobileOpen) && (
