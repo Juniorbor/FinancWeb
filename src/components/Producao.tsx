@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { ItemProducaoTomo } from '../types';
 import { pushToCloud, pullFromCloud, subscribeLocalBroadcast } from '../services/cloudSync';
+import { WhatsappNotificacoes } from './WhatsappNotificacoes';
 import {
   BarChart3,
   Plus,
@@ -16,7 +17,8 @@ import {
   Users,
   AlertTriangle,
   RefreshCw,
-  PieChart
+  PieChart,
+  MessageSquare
 } from 'lucide-react';
 
 interface ProducaoProps {
@@ -43,6 +45,7 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
   });
 
   const [sincronizando, setSincronizando] = useState<boolean>(false);
+  const [subAba, setSubAba] = useState<'producao' | 'whatsapp'>('producao');
 
   // Salvamento automático permanente em localStorage local
   useEffect(() => {
@@ -286,8 +289,42 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
 
   return (
     <div className="space-y-6">
-      
-      {/* 1. HEADER PRINCIPAL "Controle de Produção" */}
+
+      {/* SELETOR DE NAVEGAÇÃO DE PRODUÇÃO & AUTOMAÇÃO WHATSAPP POR CLÍNICA */}
+      <div className="bg-slate-950 p-1.5 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-2 shadow-inner">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSubAba('producao')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+              subAba === 'producao'
+                ? 'bg-teal-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 text-teal-300" /> Tabela de Lançamentos da Produção
+          </button>
+
+          <button
+            onClick={() => setSubAba('whatsapp')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+              subAba === 'whatsapp'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4 text-emerald-400" /> Desempenho Financeiro por Clínica & Notificação WhatsApp (18:30h)
+          </button>
+        </div>
+
+        <span className="text-[11px] font-extrabold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/20 hidden lg:flex items-center gap-1.5">
+          📱 Disparo Agendado (69) 993649158 às 18:30h
+        </span>
+      </div>
+
+      {subAba === 'whatsapp' ? (
+        <WhatsappNotificacoes darkMode={darkMode} />
+      ) : (
+        <>
       <div className={`p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
         darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
       }`}>
@@ -1032,6 +1069,8 @@ export const Producao: React.FC<ProducaoProps> = ({ darkMode }) => {
             </form>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TransacaoPessoal, ItemProducaoTomo } from '../types';
 import { pushToCloud, pullFromCloud, subscribeLocalBroadcast } from '../services/cloudSync';
-import { WhatsappNotificacoes } from './WhatsappNotificacoes';
 import {
   DollarSign,
   Plus,
@@ -19,8 +18,7 @@ import {
   RefreshCw,
   Sparkles,
   PieChart,
-  BarChart3,
-  MessageSquare
+  BarChart3
 } from 'lucide-react';
 
 interface FinanceiroProps {
@@ -83,7 +81,6 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
   });
 
   const [sincronizando, setSincronizando] = useState<boolean>(false);
-  const [subAba, setSubAba] = useState<'financeiro' | 'whatsapp'>('financeiro');
 
   // Salvamento automático permanente no dispositivo local
   useEffect(() => {
@@ -395,42 +392,7 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
 
   return (
     <div className="space-y-6">
-
-      {/* SELETOR DE MÓDULOS: Gestão Financeira vs Automação WhatsApp 18:30h */}
-      <div className="bg-slate-950 p-1.5 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-2 shadow-inner">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setSubAba('financeiro')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
-              subAba === 'financeiro'
-                ? 'bg-teal-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <DollarSign className="w-4 h-4 text-teal-300" /> Gestão Financeira Pessoal
-          </button>
-
-          <button
-            onClick={() => setSubAba('whatsapp')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
-              subAba === 'whatsapp'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <MessageSquare className="w-4 h-4 text-emerald-400" /> Automação WhatsApp & Notificações por Clínica (18:30h)
-          </button>
-        </div>
-
-        <span className="text-[11px] font-extrabold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/20 hidden lg:flex items-center gap-1.5">
-          📱 Destinatário: (69) 993649158
-        </span>
-      </div>
-
-      {subAba === 'whatsapp' ? (
-        <WhatsappNotificacoes darkMode={darkMode} />
-      ) : (
-        <>
+      {/* 1. HEADER GESTÃO FINANCEIRA PESSOAL */}
       <div className={`p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
         darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
       }`}>
@@ -1075,8 +1037,6 @@ export const Financeiro: React.FC<FinanceiroProps> = ({ darkMode }) => {
             </form>
           </div>
         </div>
-      )}
-        </>
       )}
     </div>
   );
