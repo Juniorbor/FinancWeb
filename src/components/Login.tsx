@@ -50,19 +50,19 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <div className="inline-block relative">
             <img
               src={LOGO_BASE64}
-              alt="Finanças Pessoal - Gestão Financeira & Produção"
-              className="w-28 h-28 object-contain rounded-full border-4 border-teal-500/60 shadow-2xl shadow-teal-500/50 bg-white p-1 mx-auto hover:scale-105 transition-transform duration-300"
+              alt="Finanças Pessoal - Organize • Planeje • Realize"
+              className="w-32 h-32 object-contain rounded-full border-4 border-emerald-500/60 shadow-2xl shadow-emerald-500/40 bg-white p-1.5 mx-auto hover:scale-105 transition-transform duration-300"
             />
-            <span className="absolute -bottom-1 right-0 bg-teal-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full border border-teal-300 shadow flex items-center gap-0.5">
+            <span className="absolute -bottom-1 right-0 bg-emerald-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-300 shadow flex items-center gap-0.5">
               <Sparkles className="w-3 h-3" /> ONLINE
             </span>
           </div>
           <div>
             <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1">
-              Finanças <span className="text-teal-400">Pessoal</span>
+              Finanças <span className="text-emerald-400">Pessoal</span>
             </h1>
-            <p className="text-xs font-bold text-teal-400 uppercase tracking-widest mt-0.5">
-              Gestão Financeira & Produção
+            <p className="text-xs font-extrabold text-emerald-400 uppercase tracking-widest mt-0.5">
+              Organize • Planeje • Realize
             </p>
           </div>
         </div>

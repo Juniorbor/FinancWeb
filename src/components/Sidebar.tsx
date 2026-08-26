@@ -90,8 +90,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
                   Finanças <span className="text-teal-400">Pessoal</span>
                 </span>
-                <span className="text-[9px] font-bold text-teal-400 block -mt-1 uppercase tracking-wider">
-                  Gestão Financeira & Produção
+                <span className="text-[9px] font-bold text-emerald-400 block -mt-0.5 uppercase tracking-wider">
+                  Organize • Planeje • Realize
                 </span>
               </div>
             )}
