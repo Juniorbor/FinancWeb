@@ -544,7 +544,7 @@ export const Odontograma: React.FC<OdontogramaProps> = ({
   const totalRestaurados = Object.values(dentes).filter((d) => d.status === 'Restaurado').length;
   const valorTotalOrcamento = procedimentosProntuario.reduce((acc, p) => acc + p.valor, 0);
 
-  // Renderizador individual do Card Dental 2D em Quadrado com Notação de Faces
+  // Renderizador individual do Card Dental 2D em Quadrado com Notação de Faces (Compacto e Responsivo)
   const renderDenteCard = (num: number) => {
     const info = dentes[num] || { numero: num, status: 'Saudável' };
     const cor = statusCores[info.status] || statusCores['Saudável'];
@@ -554,30 +554,30 @@ export const Odontograma: React.FC<OdontogramaProps> = ({
       <button
         key={num}
         onClick={() => handleSelectDente(num)}
-        className={`flex flex-col items-center justify-between p-2 rounded-2xl border-2 transition-all cursor-pointer min-w-[58px] min-h-[108px] relative group ${
+        className={`flex-1 min-w-[28px] max-w-[46px] sm:min-w-[36px] sm:max-w-[52px] flex flex-col items-center justify-between p-1 sm:p-1.5 rounded-xl border transition-all cursor-pointer relative group ${
           cor.bg
-        } ${isSelected ? 'border-teal-500 ring-2 ring-teal-400 scale-105 shadow-xl z-10' : cor.border}`}
+        } ${isSelected ? 'border-teal-400 ring-2 ring-teal-400/80 scale-105 shadow-lg z-10' : cor.border}`}
       >
-        <span className="text-[11px] font-extrabold text-slate-300">{num}</span>
+        <span className="text-[10px] sm:text-[11px] font-black text-slate-200">{num}</span>
 
-        {/* Ilustração Anatômica em Imagem SVG com Tom Verde / Colorido */}
+        {/* Ilustração Anatômica em Imagem SVG com Tom Verde / Colorido (Compacto) */}
         <div className="my-0.5 flex items-center justify-center">
-          <DenteAnatomicoSVG numero={num} status={info.status} corHex={cor.hex} tamanho={38} />
+          <DenteAnatomicoSVG numero={num} status={info.status} corHex={cor.hex} tamanho={28} />
         </div>
 
         {/* Grade de Seleção das 5 Faces do Dente em Quadrados (V, O, L) */}
-        <div className="w-full grid grid-cols-3 gap-0.5 my-1 text-[8px] font-extrabold text-center">
-          <span className="bg-slate-900/90 text-slate-300 rounded border border-slate-700/50 py-0.5">V</span>
-          <span className="bg-slate-900/90 text-teal-300 rounded border border-slate-700/50 py-0.5">O</span>
-          <span className="bg-slate-900/90 text-slate-300 rounded border border-slate-700/50 py-0.5">L</span>
+        <div className="w-full grid grid-cols-3 gap-0.5 my-0.5 text-[7px] sm:text-[8px] font-black text-center">
+          <span className="bg-slate-950/90 text-slate-300 rounded border border-slate-700/60 leading-none py-0.5">V</span>
+          <span className="bg-slate-950/90 text-teal-300 rounded border border-slate-700/60 leading-none py-0.5">O</span>
+          <span className="bg-slate-950/90 text-slate-300 rounded border border-slate-700/60 leading-none py-0.5">L</span>
         </div>
 
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${cor.badge} truncate max-w-[54px]`}>
+        <span className={`text-[8px] sm:text-[9px] font-bold px-1 py-0.2 rounded ${cor.badge} truncate max-w-full`}>
           {info.status}
         </span>
 
-        <div className="absolute inset-0 bg-teal-950/80 opacity-0 group-hover:opacity-100 rounded-2xl flex items-center justify-center transition-opacity">
-          <ZoomIn className="w-5 h-5 text-teal-300" />
+        <div className="absolute inset-0 bg-teal-950/80 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center transition-opacity">
+          <ZoomIn className="w-4 h-4 text-teal-300" />
         </div>
       </button>
     );
@@ -709,51 +709,51 @@ export const Odontograma: React.FC<OdontogramaProps> = ({
       {/* 4. ÁREA PRINCIPAL DO ODONTOGRAMA (2D CLÁSSICO OU 3D) */}
       {modoDimensao === '2D' ? (
         /* VISUALIZAÇÃO 2D EM QUADRADOS E CORES VERDES CLÁSSICAS */
-        <div className="p-6 rounded-3xl border border-slate-800 bg-slate-900 text-white shadow-xl space-y-8">
+        <div className="p-3.5 sm:p-5 rounded-3xl border border-slate-800 bg-slate-900 text-white shadow-xl space-y-4">
           
           {/* ARCADA SUPERIOR (Quadrantes 1 e 2) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between border-b border-slate-800/60 pb-1.5">
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
                 1. Arcada Maxilar Superior (Notação FDI 18 a 28)
               </h3>
-              <span className="text-[11px] text-slate-400">Clique em qualquer quadrado dental para abrir a ficha de faces</span>
+              <span className="text-[10px] text-slate-400 hidden sm:inline">Clique em qualquer quadrado dental para abrir a ficha de faces</span>
             </div>
 
-            <div className="flex justify-center gap-1.5 sm:gap-2.5 overflow-x-auto pb-2 scrollbar-none">
+            <div className="flex items-center justify-between gap-1 sm:gap-2 w-full">
               {/* Quadrante 1 (18-11) */}
-              <div className="flex gap-1.5 sm:gap-2 bg-slate-950/70 p-2.5 rounded-2xl border border-slate-800/80 shadow-inner">
+              <div className="flex-1 flex gap-1 sm:gap-1.5 bg-slate-950/70 p-1.5 sm:p-2 rounded-2xl border border-slate-800/80 shadow-inner overflow-hidden">
                 {quadrant1.map(renderDenteCard)}
               </div>
 
-              <div className="w-1 bg-teal-500/40 rounded-full my-1"></div>
+              <div className="w-1 h-12 bg-teal-500/40 rounded-full flex-shrink-0"></div>
 
               {/* Quadrante 2 (21-28) */}
-              <div className="flex gap-1.5 sm:gap-2 bg-slate-950/70 p-2.5 rounded-2xl border border-slate-800/80 shadow-inner">
+              <div className="flex-1 flex gap-1 sm:gap-1.5 bg-slate-950/70 p-1.5 sm:p-2 rounded-2xl border border-slate-800/80 shadow-inner overflow-hidden">
                 {quadrant2.map(renderDenteCard)}
               </div>
             </div>
           </div>
 
           {/* ARCADA INFERIOR (Quadrantes 4 e 3) */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between border-b border-slate-800/60 pb-1.5">
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
                 2. Arcada Mandibular Inferior (Notação FDI 48 a 38)
               </h3>
-              <span className="text-[11px] text-slate-400">Notação por cores: Verde (Saudável), Vermelho (Cárie), Azul (Restaurado)</span>
+              <span className="text-[10px] text-slate-400 hidden sm:inline">Notação por cores: Verde (Saudável), Vermelho (Cárie), Azul (Restaurado)</span>
             </div>
 
-            <div className="flex justify-center gap-1.5 sm:gap-2.5 overflow-x-auto pb-2 scrollbar-none">
+            <div className="flex items-center justify-between gap-1 sm:gap-2 w-full">
               {/* Quadrante 4 (48-41) */}
-              <div className="flex gap-1.5 sm:gap-2 bg-slate-950/70 p-2.5 rounded-2xl border border-slate-800/80 shadow-inner">
+              <div className="flex-1 flex gap-1 sm:gap-1.5 bg-slate-950/70 p-1.5 sm:p-2 rounded-2xl border border-slate-800/80 shadow-inner overflow-hidden">
                 {quadrant4.map(renderDenteCard)}
               </div>
 
-              <div className="w-1 bg-teal-500/40 rounded-full my-1"></div>
+              <div className="w-1 h-12 bg-teal-500/40 rounded-full flex-shrink-0"></div>
 
               {/* Quadrante 3 (31-38) */}
-              <div className="flex gap-1.5 sm:gap-2 bg-slate-950/70 p-2.5 rounded-2xl border border-slate-800/80 shadow-inner">
+              <div className="flex-1 flex gap-1 sm:gap-1.5 bg-slate-950/70 p-1.5 sm:p-2 rounded-2xl border border-slate-800/80 shadow-inner overflow-hidden">
                 {quadrant3.map(renderDenteCard)}
               </div>
             </div>
