@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { ItemProducaoTomo } from '../types';
 import {
   MessageSquare,
   Clock,
@@ -13,11 +14,13 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Phone,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
 
 interface WhatsappNotificacoesProps {
   darkMode?: boolean;
+  itensProducao?: ItemProducaoTomo[];
 }
 
 export interface DesempenhoClinica {
@@ -30,57 +33,30 @@ export interface DesempenhoClinica {
   procedimentosDestaque: string;
   pacientesMesAnterior: number;
   faturamentoMesAnterior: number;
-  crescimentoMes: number; // Porcentagem
+  crescimentoMes: number;
 }
 
-export const CLINICAS_MOCK_INICIAIS: DesempenhoClinica[] = [
-  {
-    id: 'cli-1',
-    nome: 'Finanças Pessoal - Unidade Centro',
-    unidade: 'Matriz - Centro',
-    pacientesHoje: 14,
-    faturamentoHoje: 3850.00,
-    ticketMedioHoje: 275.00,
-    procedimentosDestaque: 'Tomografias & Limpezas',
-    pacientesMesAnterior: 310,
-    faturamentoMesAnterior: 84500.00,
-    crescimentoMes: 12.4
-  },
-  {
-    id: 'cli-2',
-    nome: 'Finanças Pessoal - Unidade Norte',
-    unidade: 'Filial 01 - Norte',
-    pacientesHoje: 9,
-    faturamentoHoje: 2420.00,
-    ticketMedioHoje: 268.88,
-    procedimentosDestaque: 'Restaurações & Raios-X',
-    pacientesMesAnterior: 215,
-    faturamentoMesAnterior: 58200.00,
-    crescimentoMes: 8.7
-  },
-  {
-    id: 'cli-3',
-    nome: 'Finanças Pessoal - Unidade Sul',
-    unidade: 'Filial 02 - Sul',
-    pacientesHoje: 11,
-    faturamentoHoje: 2980.00,
-    ticketMedioHoje: 270.90,
-    procedimentosDestaque: 'Endodontia & Próteses',
-    pacientesMesAnterior: 265,
-    faturamentoMesAnterior: 71900.00,
-    crescimentoMes: 15.1
-  }
+const TODAS_UNIDADES_PRODUCAO = [
+  { id: 'cli-1', nome: 'Clínica Ariquemes', unidade: 'Ariquemes', proprietario: 'Fernando' },
+  { id: 'cli-2', nome: 'Clínica Porto Velho', unidade: 'Porto Velho', proprietario: 'Fernando' },
+  { id: 'cli-3', nome: 'Clínica Machadinho', unidade: 'Machadinho', proprietario: 'Fernando' },
+  { id: 'cli-4', nome: 'Clínica Cacoal', unidade: 'Cacoal', proprietario: 'Fernando' },
+  { id: 'cli-5', nome: 'Clínica Rolim de Moura', unidade: 'Rolim de Moura', proprietario: 'Bernardo' },
+  { id: 'cli-6', nome: 'Clínica Ouro Preto', unidade: 'Ouro Preto', proprietario: 'Bernardo' },
+  { id: 'cli-7', nome: 'Clínica Ji-Paraná', unidade: 'Ji-Paraná', proprietario: 'Bernardo' }
 ];
 
 const STORAGE_KEY_WHATSAPP = 'odonto_whatsapp_config_v1';
 
-export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ darkMode }) => {
+export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
+  darkMode,
+  itensProducao = []
+}) => {
   const [telefoneWhatsApp, setTelefoneWhatsApp] = useState<string>('(69) 993649158');
   const [horarioDiario, setHorarioDiario] = useState<string>('18:30');
   const [automacaoAtiva, setAutomacaoAtiva] = useState<boolean>(true);
   const [notificarDiaUm, setNotificarDiaUm] = useState<boolean>(true);
 
-  const [clinicas] = useState<DesempenhoClinica[]>(CLINICAS_MOCK_INICIAIS);
   const [sucessoMsg, setSucessoMsg] = useState<string>('');
   const [modalEditAberto, setModalEditAberto] = useState<boolean>(false);
   const [modalRelatorioMensalAberto, setModalRelatorioMensalAberto] = useState<boolean>(false);
@@ -113,31 +89,73 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
     setTimeout(() => setSucessoMsg(''), 4000);
   };
 
-  // Calcula totais do dia
+  // CALCULA O DESEMPENHO EM TEMPO REAL DE CADA CLÍNICA BASEADO DIRETAMENTE NA TABELA DE LANÇAMENTOS DA PRODUÇÃO
+  const dataHojeIso = new Date().toISOString().split('T')[0];
+
+  const clinicas: DesempenhoClinica[] = TODAS_UNIDADES_PRODUCAO.map((u) => {
+    // Filtra lançamentos da tabela referentes a esta unidade
+    const lancamentosClinica = itensProducao.filter((i) => i.unidade === u.unidade);
+    // Lançamentos específicos da data de hoje
+    const lancamentosHoje = lancamentosClinica.filter((i) => i.data === dataHojeIso);
+    
+    // Se houver lançamentos hoje, usamos a data de hoje; caso contrário, mostramos os lançamentos gerais da tabela para esta clínica
+    const alvoLancamentos = lancamentosHoje.length > 0 ? lancamentosHoje : lancamentosClinica;
+
+    const pacientesHoje = alvoLancamentos.length;
+    const faturamentoHoje = alvoLancamentos.reduce((acc, i) => acc + i.valor, 0);
+    const ticketMedioHoje = pacientesHoje > 0 ? faturamentoHoje / pacientesHoje : 0;
+
+    // Região tomográfica em destaque
+    const regioesCount: Record<string, number> = {};
+    alvoLancamentos.forEach((i) => {
+      regioesCount[i.regiao] = (regioesCount[i.regiao] || 0) + 1;
+    });
+    const regiaoMaisFrequente = Object.keys(regioesCount).sort((a, b) => regioesCount[b] - regioesCount[a])[0];
+    const procedimentosDestaque = pacientesHoje > 0 ? regiaoMaisFrequente : 'Sem lançamentos na tabela';
+
+    return {
+      id: u.id,
+      nome: u.nome,
+      unidade: `${u.unidade} (${u.proprietario})`,
+      pacientesHoje,
+      faturamentoHoje,
+      ticketMedioHoje,
+      procedimentosDestaque,
+      pacientesMesAnterior: lancamentosClinica.length,
+      faturamentoMesAnterior: lancamentosClinica.reduce((acc, i) => acc + i.valor, 0),
+      crescimentoMes: 0
+    };
+  });
+
+  // Calcula totais dinâmicos de todas as clínicas baseados na produção
   const totalPacientesHoje = clinicas.reduce((acc, c) => acc + c.pacientesHoje, 0);
   const totalFaturamentoHoje = clinicas.reduce((acc, c) => acc + c.faturamentoHoje, 0);
 
-  // Monta a mensagem formatada profissional para WhatsApp
+  // Monta a mensagem formatada para WhatsApp baseada 100% na Tabela de Lançamentos da Produção
   const gerarMensagemWhatsAppDiaria = () => {
     const dataHoje = new Date().toLocaleDateString('pt-BR');
-    let texto = `*📊 FINANÇAS PESSOAL - RESUMO DIÁRIO DE DESEMPENHO*\n`;
-    texto += `📅 *Data:* ${dataHoje} | ⏰ *Horário:* 18:30h\n`;
-    texto += `📱 *Destinatário:* (69) 993649158\n\n`;
-    texto += `*📈 RESUMO GERAL DAS CLÍNICAS:*\n`;
-    texto += `• Total de Pacientes Atendidos Hoje: *${totalPacientesHoje} pacientes*\n`;
+    let texto = `*📊 FINANÇAS PESSOAL - RESUMO DIÁRIO DE PRODUÇÃO DAS CLÍNICAS*\n`;
+    texto += `📅 *Data:* ${dataHoje} | ⏰ *Horário:* ${horarioDiario}h\n`;
+    texto += `📱 *Destinatário:* ${telefoneWhatsApp}\n\n`;
+    texto += `*📈 BALANÇO CONSOLIDADO DO DIA (TABELA DE PRODUÇÃO):*\n`;
+    texto += `• Total de Pacientes Atendidos: *${totalPacientesHoje} pacientes*\n`;
     texto += `• Faturamento Total do Dia: *R$ ${totalFaturamentoHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*\n\n`;
     texto += `*🏥 DESEMPENHO INDIVIDUAL POR CLÍNICA:*\n`;
 
     clinicas.forEach((c, idx) => {
-      texto += `\n*${idx + 1}. ${c.nome.toUpperCase()}*\n`;
+      texto += `\n*${idx + 1}. ${c.nome.toUpperCase()} (${c.unidade})*\n`;
       texto += `  👥 Pacientes Atendidos Hoje: *${c.pacientesHoje}*\n`;
       texto += `  💰 Faturamento do Dia: *R$ ${c.faturamentoHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*\n`;
       texto += `  🎯 Ticket Médio: *R$ ${c.ticketMedioHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/paciente*\n`;
-      texto += `  ✨ Destaque: _${c.procedimentosDestaque}_\n`;
+      if (c.pacientesHoje > 0) {
+        texto += `  ✨ Região Principal: _${c.procedimentosDestaque}_\n`;
+      } else {
+        texto += `  ⚪ Status: _Zerado (Sem lançamentos hoje na tabela)_\n`;
+      }
     });
 
     texto += `\n-----------------------------------\n`;
-    texto += `✅ _Relatório automatizado gerado por Finanças Pessoal Platform._`;
+    texto += `✅ _Relatório automatizado sincronizado com a Tabela de Lançamentos da Produção._`;
     return texto;
   };
 
@@ -148,11 +166,10 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
     const urlWhatsapp = `https://wa.me/${numComPais}?text=${mensagemEncoded}`;
 
     window.open(urlWhatsapp, '_blank');
-    setSucessoMsg(`Notificação montada e enviada via WhatsApp para (${telefoneWhatsApp})!`);
+    setSucessoMsg(`Notificação do resumo de produção enviada para (${telefoneWhatsApp})!`);
     setTimeout(() => setSucessoMsg(''), 4000);
   };
 
-  // Notificação do Relatório Mensal (Dia 01 do mês anterior)
   const dataHoje = new Date();
   const mesAnteriorNome = new Date(dataHoje.getFullYear(), dataHoje.getMonth() - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
@@ -169,17 +186,17 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30 uppercase tracking-widest">
-                Automação Inteligente Ativa
+                Sincronizado com Tabela de Lançamentos
               </span>
               <span className="text-[10px] font-extrabold text-teal-400 bg-teal-500/10 px-2.5 py-0.5 rounded-full border border-teal-500/30">
                 18:30h Diário
               </span>
             </div>
             <h2 className="text-xl font-extrabold mt-1 flex items-center gap-2">
-              Notificações WhatsApp & Desempenho das Clínicas
+              Notificações WhatsApp & Desempenho por Clínica (Produção)
             </h2>
             <p className="text-xs text-slate-400">
-              Receba diariamente às 18:30h no seu WhatsApp o balanço de pacientes e faturamento por clínica.
+              Cálculo em tempo real baseado exclusivamente nos lançamentos efetuados na Tabela de Produção.
             </p>
           </div>
         </div>
@@ -238,7 +255,7 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
             <h4 className="text-base font-extrabold text-teal-400 mt-0.5 flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-teal-400" /> Todos os dias às {horarioDiario}h
             </h4>
-            <span className="text-[10px] text-slate-400 mt-0.5 block">Próximo envio: Hoje às 18:30h</span>
+            <span className="text-[10px] text-slate-400 mt-0.5 block">Resumo com lançamentos do dia</span>
           </div>
           <div className="p-3 bg-teal-500/10 text-teal-400 rounded-2xl border border-teal-500/20">
             <Bell className="w-5 h-5" />
@@ -249,11 +266,11 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Pacientes Atendidos Hoje</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Pacientes na Tabela</span>
             <h4 className="text-base font-extrabold text-white mt-0.5 flex items-center gap-1.5">
               <Users className="w-4 h-4 text-teal-400" /> {totalPacientesHoje} Pacientes
             </h4>
-            <span className="text-[10px] text-slate-400 mt-0.5 block">Soma de 3 unidades ativas</span>
+            <span className="text-[10px] text-slate-400 mt-0.5 block">Soma total das 7 unidades</span>
           </div>
           <div className="p-3 bg-sky-500/10 text-sky-400 rounded-2xl border border-sky-500/20">
             <Users className="w-5 h-5" />
@@ -264,11 +281,11 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Faturamento do Dia</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Faturamento da Tabela</span>
             <h4 className="text-base font-extrabold text-emerald-400 mt-0.5 flex items-center gap-1.5">
               <DollarSign className="w-4 h-4 text-emerald-400" /> R$ {totalFaturamentoHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </h4>
-            <span className="text-[10px] text-emerald-400 mt-0.5 block font-bold">+11.2% em relação a ontem</span>
+            <span className="text-[10px] text-emerald-400 mt-0.5 block font-bold">Calculado dos lançamentos</span>
           </div>
           <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20">
             <TrendingUp className="w-5 h-5" />
@@ -290,7 +307,7 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
               <Sparkles className="w-4 h-4 text-emerald-400" /> Relatório Mensal de Desempenho por Clínica ({mesAnteriorNome})
             </h3>
             <p className="text-xs text-slate-300">
-              Consolidado estatístico de faturamento, novos pacientes e crescimento relativo referente ao mês anterior.
+              Consolidado estatístico de faturamento e total de exames por clínica extraídos da tabela de produção.
             </p>
           </div>
         </div>
@@ -303,34 +320,41 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
         </button>
       </div>
 
-      {/* TABELA DE DESEMPENHO FINANCEIRO & PACIENTES POR CLÍNICA */}
+      {/* TABELA DE DESEMPENHO FINANCEIRO & PACIENTES POR CLÍNICA (BASED ON REAL PRODUCTION LAUNCHES) */}
       <div className={`p-6 rounded-3xl border shadow-xl space-y-4 ${
         darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
           <div>
             <h3 className="text-base font-extrabold flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-teal-400" /> Desempenho em Tempo Real por Clínica
+              <Building2 className="w-5 h-5 text-teal-400" /> Desempenho em Tempo Real por Clínica (Extraído da Tabela de Produção)
             </h3>
             <p className="text-xs text-slate-400">
-              Monitoramento diário por unidade que alimenta o relatório automatizado das 18:30h via WhatsApp.
+              Monitoramento automático por unidade baseado nos lançamentos da tabela que alimentam o relatório das 18:30h via WhatsApp.
             </p>
           </div>
           <span className="text-xs font-bold text-slate-400 bg-slate-800 px-3 py-1 rounded-xl border border-slate-700">
-            3 Unidades Monitoradas
+            7 Unidades Monitoradas
           </span>
         </div>
+
+        {itensProducao.length === 0 && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 shrink-0 text-amber-400" />
+            <span>Tabela de Lançamentos da Produção está zerada no momento. Os dados das clínicas serão preenchidos automaticamente conforme você adicionar registros na tabela.</span>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-800 text-slate-400 font-extrabold uppercase tracking-wider">
                 <th className="py-3 px-3">Clínica / Unidade</th>
-                <th className="py-3 px-3 text-center">Pacientes Atendidos Hoje</th>
-                <th className="py-3 px-3 text-right">Faturamento Diário</th>
-                <th className="py-3 px-3 text-right">Ticket Médio / Paciente</th>
-                <th className="py-3 px-3">Procedimento em Destaque</th>
-                <th className="py-3 px-3 text-center">Status Envio 18:30h</th>
+                <th className="py-3 px-3 text-center">Pacientes Lançados</th>
+                <th className="py-3 px-3 text-right">Faturamento Total</th>
+                <th className="py-3 px-3 text-right">Ticket Médio / Exame</th>
+                <th className="py-3 px-3">Região / Procedimento Principal</th>
+                <th className="py-3 px-3 text-center">Status no WhatsApp 18:30h</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 font-semibold">
@@ -347,12 +371,18 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
                   </td>
 
                   <td className="py-3.5 px-3 text-center">
-                    <span className="text-sm font-black text-teal-400 bg-teal-500/10 px-3 py-1 rounded-xl border border-teal-500/20">
+                    <span className={`text-sm font-black px-3 py-1 rounded-xl border ${
+                      c.pacientesHoje > 0
+                        ? 'text-teal-400 bg-teal-500/10 border-teal-500/20'
+                        : 'text-slate-500 bg-slate-800/50 border-slate-700'
+                    }`}>
                       {c.pacientesHoje} pacientes
                     </span>
                   </td>
 
-                  <td className="py-3.5 px-3 text-right font-black text-emerald-400 text-sm">
+                  <td className={`py-3.5 px-3 text-right font-black text-sm ${
+                    c.faturamentoHoje > 0 ? 'text-emerald-400' : 'text-slate-500'
+                  }`}>
                     R$ {c.faturamentoHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </td>
 
@@ -361,14 +391,22 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
                   </td>
 
                   <td className="py-3.5 px-3 text-slate-300">
-                    <span className="bg-slate-800 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 text-[11px]">
+                    <span className={`px-2.5 py-1 rounded-lg border text-[11px] ${
+                      c.pacientesHoje > 0
+                        ? 'bg-slate-800 text-slate-200 border-slate-700'
+                        : 'bg-slate-900 text-slate-500 border-slate-800 font-normal'
+                    }`}>
                       {c.procedimentosDestaque}
                     </span>
                   </td>
 
                   <td className="py-3.5 px-3 text-center">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Pronto p/ 18:30h
+                    <span className={`inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-xl border ${
+                      c.pacientesHoje > 0
+                        ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                        : 'text-slate-400 bg-slate-800/50 border-slate-700'
+                    }`}>
+                      <CheckCircle2 className="w-3.5 h-3.5" /> {c.pacientesHoje > 0 ? 'Pronto p/ 18:30h' : 'Zerado'}
                     </span>
                   </td>
                 </tr>
@@ -404,7 +442,7 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
                   className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   required
                 />
-                <span className="text-[10px] text-slate-400 mt-1 block">Número oficial que receberá o balanço das clínicas.</span>
+                <span className="text-[10px] text-slate-400 mt-1 block">Número oficial que receberá o balanço diário das 7 clínicas.</span>
               </div>
 
               <div>
@@ -416,7 +454,7 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
                   className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   required
                 />
-                <span className="text-[10px] text-slate-400 mt-1 block">Horário agendado para o resumo de faturamento diário.</span>
+                <span className="text-[10px] text-slate-400 mt-1 block">Horário agendado para o envio do resumo de produção.</span>
               </div>
 
               <div className="space-y-2 pt-2 border-t border-slate-800">
@@ -470,10 +508,10 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div>
                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block">
-                  FECHAMENTO MENSAL CONSOLIDADO (DIA 01)
+                  FECHAMENTO MENSAL DA PRODUÇÃO (DIA 01)
                 </span>
                 <h3 className="font-extrabold text-lg flex items-center gap-2 text-white mt-0.5">
-                  <FileSpreadsheet className="w-5 h-5 text-teal-400" /> Relatório Mensal de Desempenho por Clínica ({mesAnteriorNome})
+                  <FileSpreadsheet className="w-5 h-5 text-teal-400" /> Relatório Mensal por Clínica - Tabela de Produção ({mesAnteriorNome})
                 </h3>
               </div>
               <button onClick={() => setModalRelatorioMensalAberto(false)} className="text-slate-400 hover:text-white">
@@ -484,37 +522,33 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({ dark
             <div className="space-y-4 text-xs">
               <div className="p-4 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-300 flex items-center justify-between">
                 <div>
-                  <span className="font-extrabold uppercase text-[10px] tracking-wider block text-teal-400">Total Faturado no Mês Anterior</span>
+                  <span className="font-extrabold uppercase text-[10px] tracking-wider block text-teal-400">Total Faturado na Tabela de Produção</span>
                   <h4 className="text-xl font-black text-emerald-400 mt-0.5">
-                    R$ {(84500 + 58200 + 71900).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {totalFaturamentoHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </h4>
                 </div>
                 <div className="text-right">
-                  <span className="font-extrabold uppercase text-[10px] tracking-wider block text-teal-400">Total de Pacientes</span>
-                  <h4 className="text-xl font-black text-white mt-0.5">790 Pacientes Atendidos</h4>
+                  <span className="font-extrabold uppercase text-[10px] tracking-wider block text-teal-400">Total de Pacientes Lançados</span>
+                  <h4 className="text-xl font-black text-white mt-0.5">{totalPacientesHoje} Pacientes</h4>
                 </div>
               </div>
 
               <h4 className="font-extrabold text-sm text-slate-200 uppercase tracking-wider pt-2">
-                Detalhamento por Clínica (Mês de {mesAnteriorNome}):
+                Detalhamento por Unidade de Produção:
               </h4>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {clinicas.map((c) => (
                   <div key={c.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                    <span className="font-extrabold text-xs text-teal-400 block truncate">{c.nome}</span>
+                    <span className="font-extrabold text-xs text-teal-400 block truncate">{c.nome} ({c.unidade})</span>
                     <div className="space-y-1 text-[11px]">
                       <div className="flex justify-between text-slate-300">
                         <span>Pacientes Atendidos:</span>
-                        <strong className="text-white">{c.pacientesMesAnterior}</strong>
+                        <strong className="text-white">{c.pacientesHoje}</strong>
                       </div>
                       <div className="flex justify-between text-slate-300">
-                        <span>Faturamento Total:</span>
-                        <strong className="text-emerald-400">R$ {c.faturamentoMesAnterior.toLocaleString('pt-BR')}</strong>
-                      </div>
-                      <div className="flex justify-between text-slate-300">
-                        <span>Crescimento:</span>
-                        <strong className="text-teal-400">+{c.crescimentoMes}%</strong>
+                        <span>Faturamento da Clínica:</span>
+                        <strong className="text-emerald-400">R$ {c.faturamentoHoje.toLocaleString('pt-BR')}</strong>
                       </div>
                     </div>
                   </div>
