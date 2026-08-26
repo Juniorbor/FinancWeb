@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, User, Building2, Moon, Save, CheckCircle2 } from 'lucide-react';
+import { Settings, User, Building2, Moon, Save, CheckCircle2, MessageSquare } from 'lucide-react';
 
 interface ConfiguracoesProps {
   darkMode: boolean;
@@ -138,8 +138,38 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({
                 darkMode ? 'bg-amber-400 text-slate-950 shadow' : 'bg-slate-900 text-white shadow'
               }`}
             >
-              {darkMode ? 'Ativo (Escuro)' : 'Ativar Modo Escuro'}
+              {darkMode ? 'Desativar Dark' : 'Ativar Dark'}
             </button>
+          </div>
+        </div>
+
+        {/* Automação WhatsApp & Disparos Diários */}
+        <div className={`p-6 rounded-2xl border shadow-sm space-y-4 ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
+          <h3 className="font-bold text-sm uppercase text-emerald-500 tracking-wider flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" /> Automação WhatsApp & Relatórios por Clínica
+          </h3>
+
+          <div>
+            <label className="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Contato Cadastrado p/ Disparo</label>
+            <input
+              type="text"
+              defaultValue="(69) 993649158"
+              className={`w-full p-3 rounded-xl border font-bold ${
+                darkMode ? 'bg-slate-800 border-slate-700 text-emerald-400' : 'bg-slate-50 border-slate-200 text-emerald-600'
+              }`}
+              readOnly
+            />
+            <span className="text-[10px] text-slate-400 mt-1 block">Recebe o balanço diário de faturamento e pacientes às 18:30h.</span>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Frequência dos Relatórios</label>
+            <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700 space-y-1">
+              <span className="font-extrabold text-teal-400 block">⏰ Diário às 18:30h</span>
+              <span className="font-extrabold text-emerald-400 block">📊 Mensal todo dia 01 (Mês Anterior)</span>
+            </div>
           </div>
         </div>
 

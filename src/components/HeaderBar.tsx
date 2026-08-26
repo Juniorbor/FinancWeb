@@ -47,8 +47,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const [profileOpen, setProfileOpen] = useState<boolean>(false);
 
   const notificacoes = [
-    { id: 1, titulo: 'Nova Consulta Agendada', desc: 'Confirmado para as 09:00', hora: 'Há 10 min' },
-    { id: 2, titulo: 'Resultado de Tomografia', desc: 'Tomografia disponível na aba Produção', hora: 'Há 45 min' }
+    { id: 1, titulo: '📱 Automação WhatsApp (18:30h)', desc: 'Balanço Diário de Pacientes e Faturamento por Clínica pronto para envio no (69) 993649158.', hora: 'Diário 18:30h' },
+    { id: 2, titulo: '📊 Relatório Mensal Consolidado (Dia 01)', desc: 'Relatório estatístico de faturamento do mês anterior pronto para conferência no site!', hora: 'Dia 01' },
+    { id: 3, titulo: '🏥 Unidades Monitoradas', desc: 'Matriz Centro, Filial Norte e Filial Sul sincronizadas.', hora: 'Ativo' }
   ];
 
   const resultadosBusca = searchQuery.trim()
