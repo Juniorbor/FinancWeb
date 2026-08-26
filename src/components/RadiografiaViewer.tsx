@@ -149,6 +149,8 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
   // State Modal Adicionar e Excluir Raio-X
   const [modalAberto, setModalAberto] = useState<boolean>(false);
   const [modalExcluirAberto, setModalExcluirAberto] = useState<boolean>(false);
+  const [isModalFullscreen, setIsModalFullscreen] = useState<boolean>(false);
+  const [isExpandedFullWidth, setIsExpandedFullWidth] = useState<boolean>(false);
   const [novoTitulo, setNovoTitulo] = useState<string>('');
   const [novoTipo, setNovoTipo] = useState<'Panorâmica' | 'Periapical' | 'Interproximal' | 'Tomografia 3D'>('Panorâmica');
   const [novaData, setNovaData] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -1018,7 +1020,7 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
           {/* Área Principal de Exibição da Imagem com Ferramentas */}
-          <div className="lg:col-span-3 space-y-4">
+          <div className={`${isExpandedFullWidth ? 'lg:col-span-4' : 'lg:col-span-3'} space-y-4 transition-all`}>
 
             {/* Barra de Ferramentas Médicas (Toolbar) */}
             <div className={`p-4 rounded-3xl border shadow-sm space-y-3 ${
@@ -1027,8 +1029,8 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
 
               <div className="flex flex-wrap items-center justify-between gap-3">
 
-                {/* Ajustes de Zoom e Rotação */}
-                <div className="flex items-center gap-1.5">
+                {/* Ajustes de Zoom, Rotação e Ampliação HD */}
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <button
                     onClick={() => setZoom((z) => Math.min(z + 0.25, 3))}
                     className="p-2 rounded-xl border hover:bg-teal-50 dark:hover:bg-slate-800 transition-colors"
@@ -1059,6 +1061,27 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
                     title="Restaurar Padrão"
                   >
                     <RefreshCw className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => setIsModalFullscreen(true)}
+                    className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-extrabold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+                    title="Abrir imagem em Modo Ampliado HD (100% da Tela)"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-white" /> Ampliar em Tela Cheia
+                  </button>
+
+                  <button
+                    onClick={() => setIsExpandedFullWidth(!isExpandedFullWidth)}
+                    className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer font-extrabold text-xs flex items-center gap-1.5 ${
+                      isExpandedFullWidth
+                        ? 'bg-teal-600 text-white border-teal-500 shadow-md'
+                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+                    }`}
+                    title={isExpandedFullWidth ? 'Mostrar Painel Lateral' : 'Expandir Imagem para 100% da Largura da Tela'}
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-teal-400" />
+                    <span>{isExpandedFullWidth ? 'Painel Lateral' : 'Largura Total'}</span>
                   </button>
 
                   {(formas.length > 0 || pontosPontilhado.length > 0) && (
@@ -1179,20 +1202,20 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
 
             </div>
 
-            {/* Container da Radiografia Panorâmica com Alinhamento Preciso */}
+            {/* Container da Radiografia Panorâmica Ampliada com Alinhamento Preciso */}
             <div
               ref={containerRef}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onDoubleClick={handleDoubleClick}
-              className={`relative min-h-[520px] bg-slate-950 rounded-3xl overflow-hidden border-2 border-slate-800 flex items-center justify-center p-2 shadow-2xl select-none ${
+              className={`relative min-h-[620px] sm:min-h-[700px] lg:min-h-[760px] max-h-[82vh] bg-slate-950 rounded-3xl overflow-hidden border-2 border-slate-800 flex items-center justify-center p-2 shadow-2xl select-none ${
                 ferramenta === 'selecionar' ? 'cursor-default' : 'cursor-crosshair'
               }`}
             >
               {/* Wrapper da Imagem + SVG com Transformação Unificada de Zoom e Rotação */}
               <div
-                className="relative inline-block max-h-[540px] max-w-full"
+                className="relative inline-block max-h-[76vh] max-w-full"
                 style={{
                   transform: `scale(${zoom}) rotate(${rotacao}deg)`,
                   transformOrigin: 'center center',
@@ -1208,7 +1231,7 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
                     filter: `brightness(${brilho}%) contrast(${contraste}%)`,
                     transition: 'filter 0.2s ease'
                   }}
-                  className="max-h-[540px] w-auto max-w-full object-contain block pointer-events-none rounded-2xl shadow-lg select-none"
+                  className="max-h-[76vh] w-auto max-w-full object-contain block pointer-events-none rounded-2xl shadow-lg select-none"
                 />
 
                 {/* OVERLAY SVG EXATAMENTE COINCIDENTE COM OS LIMITES DA IMAGEM */}
@@ -1704,6 +1727,136 @@ export const RadiografiaViewer: React.FC<RadiografiaViewerProps> = ({
                 Sim, Excluir Radiografia
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FULLSCREEN DE TELA CHEIA PARA VISUALIZADOR AMPLIADO HD */}
+      {isModalFullscreen && exameSelecionado && (
+        <div className="fixed inset-0 bg-slate-950/98 backdrop-blur-2xl z-50 flex flex-col p-4 sm:p-6 overflow-hidden select-none animate-fadeIn">
+          {/* Header Fullscreen */}
+          <div className="flex justify-between items-center bg-slate-900 border border-slate-800 p-4 rounded-2xl mb-3 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-teal-500/20 text-teal-400 rounded-xl border border-teal-500/30">
+                <Maximize2 className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-teal-400 uppercase tracking-widest block">
+                  VISUALIZADOR DIAGNÓSTICO AMPLIADO HD • {exameSelecionado.tipo.toUpperCase()}
+                </span>
+                <h3 className="text-base font-extrabold text-white">
+                  {exameSelecionado.titulo} {pacienteNome ? `— ${pacienteNome}` : ''}
+                </h3>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-extrabold text-slate-300 bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-700">
+                Zoom: {Math.round(zoom * 100)}% | Rotação: {rotacao}° | Brilho: {brilho}%
+              </span>
+
+              <button
+                onClick={() => setIsModalFullscreen(false)}
+                className="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white p-2.5 rounded-xl transition-all cursor-pointer border border-slate-700"
+                title="Sair da Tela Cheia"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Área de Imagem Ampliada HD em Tela Cheia */}
+          <div
+            className="flex-1 bg-slate-950 border-2 border-slate-800 rounded-3xl overflow-hidden relative flex items-center justify-center p-2 shadow-2xl"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onDoubleClick={handleDoubleClick}
+          >
+            <div
+              className="relative inline-block max-h-[82vh] max-w-full"
+              style={{
+                transform: `scale(${zoom}) rotate(${rotacao}deg)`,
+                transformOrigin: 'center center',
+                transition: isDrawing || arrastandoFormaId ? 'none' : 'transform 0.2s ease'
+              }}
+            >
+              <img
+                src={exameSelecionado.imagemUrl}
+                alt={exameSelecionado.titulo}
+                style={{
+                  filter: `brightness(${brilho}%) contrast(${contraste}%)`,
+                  transition: 'filter 0.2s ease'
+                }}
+                className="max-h-[82vh] w-auto max-w-full object-contain block pointer-events-none rounded-2xl shadow-2xl select-none"
+              />
+
+              <svg
+                style={{
+                  width: containerSize.width || '100%',
+                  height: containerSize.height || '100%'
+                }}
+                className="absolute inset-0 w-full h-full pointer-events-none z-10"
+              >
+                {formas.map((forma) => renderSvgForma(forma, false))}
+              </svg>
+            </div>
+
+            {/* Elemento Selecionado Indicator */}
+            {formaSelecionadaId && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-950/95 backdrop-blur-md px-4 py-2 rounded-2xl border border-teal-500/50 text-xs font-bold text-white shadow-2xl flex items-center gap-3 z-30">
+                <span className="text-teal-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-teal-400" /> Elemento Selecionado
+                </span>
+                <button
+                  onClick={handleDeleteFormaSelecionada}
+                  className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ml-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir Elemento
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Footer Controls */}
+          <div className="mt-3 bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-teal-400 rounded-xl border border-slate-700 cursor-pointer"
+                title="Aumentar Zoom"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-teal-400 rounded-xl border border-slate-700 cursor-pointer"
+                title="Reduzir Zoom"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setRotacao((r) => (r + 90) % 360)}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-teal-400 rounded-xl border border-slate-700 cursor-pointer"
+                title="Girar 90°"
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleResetFilters}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded-xl border border-slate-700 cursor-pointer"
+                title="Resetar"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+
+            <button
+              onClick={() => setIsModalFullscreen(false)}
+              className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-extrabold px-6 py-2.5 rounded-xl shadow-lg shadow-teal-600/30 cursor-pointer transition-all"
+            >
+              Concluir Análise Ampliada
+            </button>
           </div>
         </div>
       )}
