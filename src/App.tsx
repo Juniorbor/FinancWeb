@@ -399,14 +399,7 @@ export function App() {
         <main className="p-3 sm:p-6 flex-1 box-border w-full max-w-full transition-all">
           {activeTab === 'dashboard' && (
             <Dashboard
-              consultas={consultas}
-              pacientes={pacientes}
-              transacoes={transacoes}
               onNavigate={setActiveTab}
-              onNovaConsulta={() => setActiveTab('agenda')}
-              onNovoPaciente={() => setActiveTab('pacientes')}
-              onUpdateStatusConsulta={handleUpdateStatusConsulta}
-              onSelectPacienteParaOdontograma={handleAbrirOdontogramaPaciente}
               darkMode={darkMode}
             />
           )}
