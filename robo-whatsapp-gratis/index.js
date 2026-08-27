@@ -158,7 +158,11 @@ async function conectarWhatsApp() {
 
   sock = makeWASocket({
     auth: state,
-    printQRInTerminal: false
+    printQRInTerminal: false,
+    syncFullHistory: false, // Desativa a sincronizacao de historicos antigos para evitar Timeout na nuvem
+    connectTimeoutMs: 60000,
+    defaultQueryTimeoutMs: 60000,
+    keepAliveIntervalMs: 25000
   });
 
   sock.ev.on('connection.update', async (update) => {
@@ -174,11 +178,11 @@ async function conectarWhatsApp() {
 
     if (connection === 'close') {
       conexaoStatus = 'DESCONECTADO';
-      const shouldReconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log('🔌 Conexão encerrada. Reconectando...', shouldReconnect);
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      console.log('🔌 Conexão encerrada/reconectando... Status:', statusCode, 'Reconectar:', shouldReconnect);
       if (shouldReconnect) {
-        conectarWhatsApp();
+        setTimeout(conectarWhatsApp, 3000);
       }
     } else if (connection === 'open') {
       conexaoStatus = 'CONECTADO';
