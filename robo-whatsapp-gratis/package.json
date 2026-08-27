@@ -1,0 +1,17 @@
+{
+  "name": "robo-whatsapp-gratis",
+  "version": "1.0.0",
+  "description": "Robô 100% Gratuito e Vitalício para Envio de Notificações WhatsApp das Clínicas (18:30h)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "axios": "^1.7.9",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
