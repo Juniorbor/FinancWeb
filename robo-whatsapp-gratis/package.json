@@ -4,7 +4,8 @@
   "description": "Robô 100% Gratuito e Vitalício para Envio de Notificações WhatsApp das Clínicas (18:30h)",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "build": "echo build ok"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.9",
