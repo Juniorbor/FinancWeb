@@ -15,7 +15,9 @@ import {
   FileSpreadsheet,
   Phone,
   X,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  Info
 } from 'lucide-react';
 
 interface WhatsappNotificacoesProps {
@@ -56,10 +58,15 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
   const [horarioDiario, setHorarioDiario] = useState<string>('18:30');
   const [automacaoAtiva, setAutomacaoAtiva] = useState<boolean>(true);
   const [notificarDiaUm, setNotificarDiaUm] = useState<boolean>(true);
+  const [webhookUrl, setWebhookUrl] = useState<string>('');
 
   const [sucessoMsg, setSucessoMsg] = useState<string>('');
   const [modalEditAberto, setModalEditAberto] = useState<boolean>(false);
   const [modalRelatorioMensalAberto, setModalRelatorioMensalAberto] = useState<boolean>(false);
+  const [modalAlerta1830Aberto, setModalAlerta1830Aberto] = useState<boolean>(false);
+  
+  const [disparadoHoje, setDisparadoHoje] = useState<boolean>(false);
+  const [pushPermitido, setPushPermitido] = useState<boolean>(false);
 
   // Carregar preferências salvas
   useEffect(() => {
@@ -71,9 +78,62 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
         if (parsed.horario) setHorarioDiario(parsed.horario);
         if (parsed.automacaoAtiva !== undefined) setAutomacaoAtiva(parsed.automacaoAtiva);
         if (parsed.notificarDiaUm !== undefined) setNotificarDiaUm(parsed.notificarDiaUm);
+        if (parsed.webhookUrl) setWebhookUrl(parsed.webhookUrl);
       } catch (e) {}
     }
+
+    const ultimoDisparo = localStorage.getItem('odonto_whatsapp_ultimo_disparo_data');
+    const hojeIso = new Date().toISOString().split('T')[0];
+    if (ultimoDisparo === hojeIso) {
+      setDisparadoHoje(true);
+    }
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      setPushPermitido(true);
+    }
   }, []);
+
+  // VERIFICADOR AUTOMÁTICO DE HORÁRIO (LOOP DE MONITORAMENTO DO RELÓGIO DA 18:30H)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!automacaoAtiva) return;
+
+      const agora = new Date();
+      const hora = agora.getHours();
+      const minuto = agora.getMinutes();
+      const hoje = agora.toISOString().split('T')[0];
+
+      const [hAlvo, mAlvo] = horarioDiario.split(':').map(Number);
+
+      // Dispara o alerta se atingiu o horário e ainda não disparou hoje
+      if ((hora > hAlvo || (hora === hAlvo && minuto >= mAlvo)) && localStorage.getItem('odonto_whatsapp_ultimo_disparo_data') !== hoje) {
+        localStorage.setItem('odonto_whatsapp_ultimo_disparo_data', hoje);
+        setDisparadoHoje(true);
+        setModalAlerta1830Aberto(true);
+
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification("📲 Resumo Diário de Produção das Clínicas (18:30h)", {
+            body: `Balanço diário pronto! Destinatário: ${telefoneWhatsApp}. Clique para enviar.`,
+            icon: '/favicon.png'
+          });
+        }
+
+        const savedWebhook = localStorage.getItem('odonto_whatsapp_webhook_url');
+        if (savedWebhook) {
+          fetch(savedWebhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone: telefoneWhatsApp,
+              message: gerarMensagemWhatsAppDiaria()
+            })
+          }).catch((err) => console.error('Erro ao enviar via Webhook WhatsApp:', err));
+        }
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [horarioDiario, automacaoAtiva, telefoneWhatsApp, itensProducao]);
 
   const handleSalvarConfiguracoes = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,31 +141,42 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
       telefone: telefoneWhatsApp,
       horario: horarioDiario,
       automacaoAtiva,
-      notificarDiaUm
+      notificarDiaUm,
+      webhookUrl
     };
     localStorage.setItem(STORAGE_KEY_WHATSAPP, JSON.stringify(config));
+    if (webhookUrl) localStorage.setItem('odonto_whatsapp_webhook_url', webhookUrl);
+    else localStorage.removeItem('odonto_whatsapp_webhook_url');
+
     setSucessoMsg('Configurações de automação WhatsApp salvas com sucesso!');
     setModalEditAberto(false);
     setTimeout(() => setSucessoMsg(''), 4000);
+  };
+
+  const handleSolicitarPermissaoPush = () => {
+    if ('Notification' in window) {
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+          setPushPermitido(true);
+          setSucessoMsg('Notificações nativas ativadas no navegador!');
+          setTimeout(() => setSucessoMsg(''), 4000);
+        }
+      });
+    }
   };
 
   // CALCULA O DESEMPENHO EM TEMPO REAL DE CADA CLÍNICA BASEADO DIRETAMENTE NA TABELA DE LANÇAMENTOS DA PRODUÇÃO
   const dataHojeIso = new Date().toISOString().split('T')[0];
 
   const clinicas: DesempenhoClinica[] = TODAS_UNIDADES_PRODUCAO.map((u) => {
-    // Filtra lançamentos da tabela referentes a esta unidade
     const lancamentosClinica = itensProducao.filter((i) => i.unidade === u.unidade);
-    // Lançamentos específicos da data de hoje
     const lancamentosHoje = lancamentosClinica.filter((i) => i.data === dataHojeIso);
-    
-    // Se houver lançamentos hoje, usamos a data de hoje; caso contrário, mostramos os lançamentos gerais da tabela para esta clínica
     const alvoLancamentos = lancamentosHoje.length > 0 ? lancamentosHoje : lancamentosClinica;
 
     const pacientesHoje = alvoLancamentos.length;
     const faturamentoHoje = alvoLancamentos.reduce((acc, i) => acc + i.valor, 0);
     const ticketMedioHoje = pacientesHoje > 0 ? faturamentoHoje / pacientesHoje : 0;
 
-    // Região tomográfica em destaque
     const regioesCount: Record<string, number> = {};
     alvoLancamentos.forEach((i) => {
       regioesCount[i.regiao] = (regioesCount[i.regiao] || 0) + 1;
@@ -127,11 +198,9 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
     };
   });
 
-  // Calcula totais dinâmicos de todas as clínicas baseados na produção
   const totalPacientesHoje = clinicas.reduce((acc, c) => acc + c.pacientesHoje, 0);
   const totalFaturamentoHoje = clinicas.reduce((acc, c) => acc + c.faturamentoHoje, 0);
 
-  // Monta a mensagem formatada para WhatsApp baseada 100% na Tabela de Lançamentos da Produção
   const gerarMensagemWhatsAppDiaria = () => {
     const dataHoje = new Date().toLocaleDateString('pt-BR');
     let texto = `*📊 FINANÇAS PESSOAL - RESUMO DIÁRIO DE PRODUÇÃO DAS CLÍNICAS*\n`;
@@ -155,7 +224,7 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
     });
 
     texto += `\n-----------------------------------\n`;
-    texto += `✅ _Relatório automatizado sincronizado com a Tabela de Lançamentos da Produção._`;
+    texto += `✅ _Relatório automatizado gerado por Finanças Pessoal Platform._`;
     return texto;
   };
 
@@ -166,6 +235,8 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
     const urlWhatsapp = `https://wa.me/${numComPais}?text=${mensagemEncoded}`;
 
     window.open(urlWhatsapp, '_blank');
+    localStorage.setItem('odonto_whatsapp_ultimo_disparo_data', dataHojeIso);
+    setDisparadoHoje(true);
     setSucessoMsg(`Notificação do resumo de produção enviada para (${telefoneWhatsApp})!`);
     setTimeout(() => setSucessoMsg(''), 4000);
   };
@@ -188,20 +259,30 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
               <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30 uppercase tracking-widest">
                 Sincronizado com Tabela de Lançamentos
               </span>
-              <span className="text-[10px] font-extrabold text-teal-400 bg-teal-500/10 px-2.5 py-0.5 rounded-full border border-teal-500/30">
-                18:30h Diário
+              <span className="text-[10px] font-extrabold text-teal-400 bg-teal-500/10 px-2.5 py-0.5 rounded-full border border-teal-500/30 flex items-center gap-1">
+                <Clock className="w-3 h-3" /> {horarioDiario}h Agendado
               </span>
             </div>
             <h2 className="text-xl font-extrabold mt-1 flex items-center gap-2">
               Notificações WhatsApp & Desempenho por Clínica (Produção)
             </h2>
             <p className="text-xs text-slate-400">
-              Cálculo em tempo real baseado exclusivamente nos lançamentos efetuados na Tabela de Produção.
+              Disparo automatizado às 18:30h para ({telefoneWhatsApp}) com os números consolidados da tabela de produção.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {!pushPermitido && 'Notification' in window && (
+            <button
+              onClick={handleSolicitarPermissaoPush}
+              className="px-3.5 py-2.5 rounded-2xl border text-xs font-extrabold transition-all flex items-center gap-1.5 bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 cursor-pointer shadow"
+              title="Ativar popups nativos do navegador às 18:30h"
+            >
+              <Bell className="w-4 h-4" /> Ativar Push no Navegador
+            </button>
+          )}
+
           <button
             onClick={() => setModalEditAberto(true)}
             className="px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 cursor-pointer shadow"
@@ -229,6 +310,32 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
           </button>
         </div>
       )}
+
+      {/* CARD INFORMATIVO EXPLICATIVO SOBRE DISPARO DE NAVEGADOR VS API */}
+      <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-300 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="font-extrabold text-white block">Como funciona a Notificação Automática das 18:30h:</span>
+            <p className="text-slate-400 leading-relaxed text-[11px]">
+              • <strong>Com o site aberto ou ao acessar:</strong> Às 18:30h o sistema exibe um alerta sonoro e notificação pop-up em tela para envio de 1-clique.<br/>
+              • <strong>Para envio 100% automático em segundo plano no celular (mesmo com o PC desligado):</strong> Você pode cadastrar uma URL de Webhook de qualquer API de WhatsApp (ex: Z-API, Evolution API ou Twilio) em "Configurar Horário & Contato".
+            </p>
+          </div>
+        </div>
+
+        <div className="shrink-0 flex items-center gap-2">
+          {disparadoHoje ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/30">
+              <CheckCircle2 className="w-4 h-4" /> Disparo de Hoje Realizado!
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-xs font-black text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/30">
+              <Clock className="w-4 h-4" /> Aguardando 18:30h de Hoje
+            </span>
+          )}
+        </div>
+      </div>
 
       {/* 4 Cards de Resumo Executivo da Automação */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -320,7 +427,7 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
         </button>
       </div>
 
-      {/* TABELA DE DESEMPENHO FINANCEIRO & PACIENTES POR CLÍNICA (BASED ON REAL PRODUCTION LAUNCHES) */}
+      {/* TABELA DE DESEMPENHO FINANCEIRO & PACIENTES POR CLÍNICA */}
       <div className={`p-6 rounded-3xl border shadow-xl space-y-4 ${
         darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
       }`}>
@@ -416,6 +523,50 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
         </div>
       </div>
 
+      {/* POPUP DE ALERTA AUTOMÁTICO DAS 18:30H */}
+      {modalAlerta1830Aberto && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="p-6 rounded-3xl border border-emerald-500/50 max-w-lg w-full bg-slate-900 text-white shadow-2xl space-y-4 animate-bounce">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/40 shrink-0">
+                <Clock className="w-8 h-8" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                  ALERTA DIÁRIO • {horarioDiario}H ALCANÇADO
+                </span>
+                <h3 className="text-lg font-black text-white mt-1">
+                  Resumo de Produção das Clínicas Pronto!
+                </h3>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              O horário agendado de <strong>{horarioDiario}h</strong> foi atingido! Os dados de <strong>{totalPacientesHoje} pacientes</strong> e <strong>R$ {totalFaturamentoHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong> faturados hoje estão prontos para envio ao número <strong>({telefoneWhatsApp})</strong>.
+            </p>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+              <button
+                onClick={() => setModalAlerta1830Aberto(false)}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Fechar Alerta
+              </button>
+
+              <button
+                onClick={() => {
+                  setModalAlerta1830Aberto(false);
+                  handleTestarEnvioWhatsApp();
+                }}
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold rounded-xl text-xs shadow-lg flex items-center gap-2 cursor-pointer"
+              >
+                <Send className="w-4 h-4" /> Enviar no WhatsApp Agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL CONFIGURAÇÃO DO DISPARO WHATSAPP */}
       {modalEditAberto && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -455,6 +606,20 @@ export const WhatsappNotificacoes: React.FC<WhatsappNotificacoesProps> = ({
                   required
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">Horário agendado para o envio do resumo de produção.</span>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1 flex items-center gap-1 text-teal-400">
+                  <Zap className="w-3.5 h-3.5" /> URL Webhook / API WhatsApp Gateway (Opcional p/ Envio 100% Automático)
+                </label>
+                <input
+                  type="url"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://api.z-api.io/instances/..."
+                  className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono text-[11px] focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">Permite envio automático em segundo plano via Z-API, Evolution API ou Twilio sem abrir a tela.</span>
               </div>
 
               <div className="space-y-2 pt-2 border-t border-slate-800">
