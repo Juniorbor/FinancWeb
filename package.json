@@ -1,0 +1,14 @@
+{
+  "name": "financweb-controle-tomos",
+  "version": "1.0.0",
+  "description": "Sistema Web de Controle de Tomos e Traçados (Fernando e Bernardo)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "node build.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
